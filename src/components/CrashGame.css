@@ -1,0 +1,627 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1a1a;
+  color: white;
+  overflow: hidden;
+}
+
+.space-x1-container {
+  height: 100vh;
+  width: 100vw;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+  display: flex;
+  flex-direction: column;
+  color: white;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid #333;
+  height: 60px;
+  min-height: 60px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.menu-icon, .volume-icon {
+  font-size: 18px;
+  color: #888;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.menu-icon:hover, .volume-icon:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.game-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffdd00;
+  text-shadow: 0 0 10px rgba(255, 221, 0, 0.5);
+}
+
+.game-history {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.history-item {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.history-item.highlight {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.2);
+}
+
+.refresh-icon {
+  font-size: 18px;
+  color: #888;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.refresh-icon:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Sidebar - Leaderboard */
+.sidebar {
+  width: 250px;
+  background: rgba(0, 0, 0, 0.3);
+  border-right: 1px solid #333;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.leaderboard-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.trophy {
+  font-size: 20px;
+}
+
+.dash {
+  font-size: 18px;
+  color: #888;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-name {
+  font-size: 14px;
+  color: #ccc;
+}
+
+.player-amount {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #ffdd00;
+  font-weight: 500;
+}
+
+.fun-icon {
+  color: #ffdd00;
+  font-size: 8px;
+}
+
+/* Game Area */
+.game-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  position: relative;
+}
+
+.graph-container {
+  flex: 1;
+  position: relative;
+  background: #2a2a2a;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #444;
+}
+
+.graph {
+  width: 100%;
+  height: 100%;
+  background: #2a2a2a;
+}
+
+.axis-label {
+  fill: #888;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+.main-axis {
+  stroke: #666;
+  stroke-width: 2;
+}
+
+.axis-title {
+  fill: #aaa;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+
+
+.rocket-graph {
+  filter: drop-shadow(0 0 8px #ff6b35);
+}
+
+/* Game Status Overlay */
+.game-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.status-circle {
+  background: rgba(0, 0, 0, 0.8);
+  border: 3px solid #ffdd00;
+  border-radius: 50%;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(255, 221, 0, 0.3);
+}
+
+.status-text {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffdd00;
+  text-shadow: 0 0 10px rgba(255, 221, 0, 0.5);
+  margin-bottom: 10px;
+}
+
+.status-separator {
+  width: 80%;
+  height: 2px;
+  background: white;
+  margin: 10px 0;
+}
+
+.bets-count {
+  font-size: 16px;
+  color: white;
+  font-weight: 500;
+}
+
+.countdown-timer {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ff4444;
+  text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+  margin-bottom: 10px;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.countdown-text {
+  font-size: 16px;
+  color: #ffdd00;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.multiplier-display {
+  font-size: 36px;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  margin-bottom: 10px;
+  animation: glow 0.5s ease-in-out infinite alternate;
+}
+
+.multiplier-text {
+  font-size: 16px;
+  color: #00ff00;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  }
+  to {
+    text-shadow: 0 0 30px rgba(0, 255, 0, 1);
+  }
+}
+
+/* Multiplier Display During Game */
+.multiplier-display-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 20px 30px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.multiplier-value-display {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ff6b35;
+  text-shadow: 0 0 15px rgba(255, 107, 53, 0.8);
+  margin-bottom: 8px;
+  font-family: 'Courier New', monospace;
+}
+
+.multiplier-separator-line {
+  width: 100%;
+  height: 2px;
+  background: white;
+  margin: 8px 0;
+  opacity: 0.8;
+}
+
+.bets-display {
+  font-size: 16px;
+  color: #ccc;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Crash Effect Animations */
+.crash-glow {
+  animation: crashPulse 0.5s ease-in-out infinite alternate;
+}
+
+.crash-bright {
+  animation: crashBright 0.3s ease-in-out infinite alternate;
+}
+
+.crash-center {
+  animation: crashExplosion 0.2s ease-in-out infinite alternate;
+}
+
+@keyframes crashPulse {
+  0% {
+    r: 60;
+    opacity: 0.3;
+  }
+  100% {
+    r: 80;
+    opacity: 0.1;
+  }
+}
+
+@keyframes crashBright {
+  0% {
+    r: 30;
+    opacity: 0.6;
+  }
+  100% {
+    r: 40;
+    opacity: 0.4;
+  }
+}
+
+@keyframes crashExplosion {
+  0% {
+    r: 15;
+    opacity: 0.9;
+  }
+  100% {
+    r: 20;
+    opacity: 0.7;
+  }
+}
+
+/* Particles */
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, #ff4444, #ff6600);
+  border-radius: 50%;
+  animation: float 3s ease-in-out infinite;
+}
+
+.particle-1 {
+  top: 20%;
+  left: 30%;
+  animation-delay: 0s;
+}
+
+.particle-2 {
+  top: 30%;
+  left: 60%;
+  animation-delay: 0.5s;
+}
+
+.particle-3 {
+  top: 40%;
+  left: 20%;
+  animation-delay: 1s;
+}
+
+.particle-4 {
+  top: 25%;
+  left: 80%;
+  animation-delay: 1.5s;
+}
+
+.particle-5 {
+  top: 35%;
+  left: 45%;
+  animation-delay: 2s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-20px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Control Bar */
+.control-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid #333;
+  height: 80px;
+  min-height: 80px;
+}
+
+.balance {
+  font-size: 16px;
+  color: white;
+  font-weight: 500;
+  min-width: 150px;
+}
+
+.auto-btn {
+  background: #333;
+  color: #ffdd00;
+  border: 1px solid #555;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.auto-btn:hover {
+  background: #444;
+  border-color: #666;
+}
+
+.betting-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bet-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #333;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #555;
+}
+
+.bet-amount {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.bet-separator {
+  color: #888;
+  font-size: 14px;
+}
+
+.bet-multiplier {
+  color: #ffdd00;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.place-bet-btn {
+  background: linear-gradient(135deg, #ffdd00 0%, #ffb700 100%);
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 221, 0, 0.3);
+}
+
+.place-bet-btn:hover {
+  background: linear-gradient(135deg, #ffb700 0%, #ffdd00 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 221, 0, 0.4);
+}
+
+.place-bet-btn:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 200px;
+  }
+  
+  .leaderboard-item {
+    padding: 6px 8px;
+  }
+  
+  .player-name {
+    font-size: 12px;
+  }
+  
+  .player-amount {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: 150px;
+  }
+  
+  .leaderboard-list {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 10px;
+  }
+  
+  .leaderboard-item {
+    min-width: 120px;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .control-bar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px;
+  }
+  
+  .betting-section {
+    flex: 1;
+    min-width: 200px;
+  }
+}
