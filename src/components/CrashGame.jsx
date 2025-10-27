@@ -1,9 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, useAnimation } from "framer-motion";
 import rocketGif from "../Assets/Rocket.gif";
+import AuthModal from "./AuthModal/AuthModal.jsx";
+import Deposit from "./Deposit/Deposit.jsx";
+import { createGame, endGame, batchAddParticipants, getGame, placeBetAPI, claimWinnings } from "../services/api.js";
 import "./CrashGame.css";
 
 const CrashGame = () => {
+  // Authentication state
+  const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login'); // 'login' or 'signup'
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  
+  // Game state
   const [multiplier, setMultiplier] = useState(1.0);
   const [isCrashed, setIsCrashed] = useState(false);
   const [roundOver, setRoundOver] = useState(false);
@@ -12,7 +22,12 @@ const CrashGame = () => {
   const [betAmount, setBetAmount] = useState(1.00);
   const [bets, setBets] = useState(12);
   const [countdown, setCountdown] = useState(5);
+  const [currentGameId, setCurrentGameId] = useState(null);
+  const [pendingParticipants, setPendingParticipants] = useState([]);
   const [showCountdown, setShowCountdown] = useState(false);
+  const [hasPlacedBet, setHasPlacedBet] = useState(false);
+  const [isWaitingForGame, setIsWaitingForGame] = useState(false);
+  const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);
   const [showStatus, setShowStatus] = useState(true);
   const [rocketTrail, setRocketTrail] = useState([]);
   const [showCrashEffect, setShowCrashEffect] = useState(false);
@@ -36,6 +51,108 @@ const CrashGame = () => {
   // Example crash point (from backend later)
   const crashPoint = useRef(Math.random() * 5 + 1.2);
 
+  // Authentication functions
+  const handleLogin = (userData, token) => {
+    setUser(userData);
+    setBalance(userData.balance || 1000);
+    setShowAuthModal(false);
+    // Save to localStorage
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', token);
+  };
+
+  const handleSignup = (userData, token) => {
+    setUser(userData);
+    setBalance(userData.balance || 1000);
+    setShowAuthModal(false);
+    // Save to localStorage
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', token);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setBalance(1000);
+    setBets([]);
+    // Clear localStorage
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  };
+  
+  // Check for saved user on component mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setUser(user);
+        setBalance(user.balance || 1000);
+      } catch (error) {
+        console.error('Error loading saved user:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+  }, []);
+
+  // Fetch and update leaderboard from current game
+  const updateLeaderboard = async () => {
+    if (currentGameId) {
+      try {
+        const gameData = await getGame(currentGameId);
+        if (gameData.success && gameData.data && gameData.data.participants) {
+          // Transform participants to leaderboard format
+          const leaderboardData = gameData.data.participants.map((participant) => {
+            const username = participant.user?.username || 
+                           (participant.user?.email ? participant.user.email.split('@')[0] : 'Anonymous');
+            // Mask username
+            const maskedName = username.length > 5 
+              ? username.substring(0, 3) + '*'.repeat(username.length - 3)
+              : username.substring(0, 2) + '*'.repeat(username.length - 2);
+            
+            return {
+              name: maskedName,
+              amount: participant.betAmount,
+              userId: participant.user?._id || participant.user,
+              betAmount: participant.betAmount,
+              cashOutMultiplier: participant.cashOutMultiplier,
+              winnings: participant.winnings
+            };
+          });
+          
+          // Sort by bet amount descending
+          leaderboardData.sort((a, b) => b.amount - a.amount);
+          setLeaderboard(leaderboardData);
+        }
+      } catch (error) {
+        console.error('Failed to fetch leaderboard:', error);
+      }
+    }
+  };
+
+  const openAuthModal = (mode = 'login') => {
+    setAuthModalMode(mode);
+    setShowAuthModal(true);
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+  };
+
+  const openDepositModal = () => {
+    setShowDepositModal(true);
+  };
+
+  const closeDepositModal = () => {
+    setShowDepositModal(false);
+  };
+
+  const handleDeposit = (depositData) => {
+    // Add deposit amount to balance
+    setBalance(prevBalance => prevBalance + depositData.amount);
+    setShowDepositModal(false);
+  };
+
   // Set initial rocket position at (0,0) when component mounts
   useEffect(() => {
     const graphStartX = 40;  // Y-axis position
@@ -43,7 +160,7 @@ const CrashGame = () => {
     rocketControls.set({ x: graphStartX, y: graphEndY });
   }, [rocketControls]);
 
-  const startGame = () => {
+  const startGame = async () => {
     setIsRunning(true);
     setIsCrashed(false);
     setRoundOver(false);
@@ -59,25 +176,155 @@ const CrashGame = () => {
     const graphStartX = 40;  // Y-axis position
     const graphEndY = 280;   // X-axis position
     rocketControls.set({ x: graphStartX, y: graphEndY });
-  };
-
-  const startCountdown = () => {
-    setShowCountdown(true);
-    setCountdown(5);
     
-    // Reset rocket to (0,0) when starting countdown
-    const graphStartX = 40;  // Y-axis position
-    const graphEndY = 280;   // X-axis position
-    rocketControls.set({ x: graphStartX, y: graphEndY });
+    // Auto-crash game after 10 seconds if not crashed yet
+    setTimeout(async () => {
+      if (isRunning && !isCrashed) {
+        const crashMultiplier = parseFloat(crashPoint.current.toFixed(2));
+        setIsCrashed(true);
+        setIsRunning(false);
+        setMultiplier(crashMultiplier);
+        setGameHistory(prev => [crashMultiplier, ...prev.slice(0, 9)]);
+        setShowStatus(true);
+        setRoundOver(true);
+        
+        // End game in database
+        if (currentGameId) {
+          try {
+            await endGame(currentGameId, crashMultiplier);
+          } catch (error) {
+            console.error('Failed to end game in database:', error);
+          }
+        }
+        
+        // Reset rocket to (0,0) after crash animation
+        setTimeout(() => {
+          rocketControls.set({ x: graphStartX, y: graphEndY, opacity: 1, rotate: 0, scale: 1 });
+          setCurrentGameId(null); // Reset game ID
+          setHasPlacedBet(false); // Reset bet status for next game
+          setUserBetInCurrentGame(null); // Reset user bet info
+        }, 1000);
+      }
+    }, 60000); // 1 minute game duration
+  };
+  
+  // Create new game at the start of waiting period
+  const createNewGameAndAddParticipants = async () => {
+    // Create a new game in the database
+    let newGameId = null;
+    try {
+      const gameData = await createGame();
+      if (gameData.success && gameData.data) {
+        newGameId = gameData.data._id;
+        setCurrentGameId(newGameId);
+        console.log(`Created new game ${newGameId}`);
+        
+        // Add all pending participants to the new game in the database
+        if (pendingParticipants.length > 0) {
+          try {
+            const participantData = pendingParticipants.map(p => ({
+              userId: p.userId,
+              betAmount: p.betAmount
+            }));
+            await batchAddParticipants(newGameId, participantData);
+            console.log(`Added ${pendingParticipants.length} pending participants to game ${newGameId}`);
+            setPendingParticipants([]); // Clear pending participants
+          } catch (error) {
+            console.error('Failed to add participants to game:', error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create game in database:', error);
+    }
+    
+    // Update leaderboard after a short delay
+    setTimeout(() => {
+      updateLeaderboard();
+    }, 500);
   };
 
-  const placeBet = () => {
-    if (balance >= betAmount) {
-      setBalance(prev => prev - betAmount);
-      setBets(prev => prev + 1);
-      if (!isRunning && !showCountdown) {
-        startCountdown();
+  const placeBet = async () => {
+    if (balance >= betAmount && user) {
+      // Use the dedicated bet API
+      if (currentGameId) {
+        try {
+          const result = await placeBetAPI(currentGameId, user._id || user.id, betAmount);
+          
+          // Update local balance with server response
+          if (result.success && result.data && result.data.user) {
+            setBalance(result.data.user.balance);
+          } else {
+            setBalance(prev => prev - betAmount);
+          }
+          
+          setBets(prev => prev + 1);
+          setHasPlacedBet(true);
+          setUserBetInCurrentGame({ betAmount, gameId: currentGameId });
+          console.log(`User ${user.username || user.email || user.phone} placed bet ${betAmount} in game ${currentGameId}`);
+          
+          // Update leaderboard after placing bet
+          setTimeout(() => {
+            updateLeaderboard();
+          }, 500);
+          
+        } catch (error) {
+          console.error('Failed to place bet:', error);
+          alert(error.message || 'Failed to place bet');
+          // Don't add to pending, just show error
+        }
+      } else {
+        // No game exists yet, add to pending participants
+        setBalance(prev => prev - betAmount);
+        setBets(prev => prev + 1);
+        setHasPlacedBet(true);
+        setUserBetInCurrentGame({ betAmount, gameId: null });
+        setPendingParticipants(prev => [...prev, {
+          userId: user._id || user.id,
+          betAmount: betAmount
+        }]);
+        console.log(`Added user ${user.username || user.email || user.phone} to pending participants for next game`);
       }
+    } else if (!user) {
+      alert('Please login to place a bet');
+    } else if (balance < betAmount) {
+      alert('Insufficient balance');
+    }
+  };
+
+  const adjustBetAmount = (amount) => {
+    const newAmount = betAmount + amount;
+    if (newAmount >= 0) {
+      setBetAmount(newAmount);
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!user || !currentGameId || !hasPlacedBet || !userBetInCurrentGame) {
+      return;
+    }
+
+    try {
+      const result = await claimWinnings(currentGameId, user._id || user.id, multiplier);
+      
+      if (result.success) {
+        // Update balance
+        if (result.data && result.data.user) {
+          setBalance(result.data.user.balance);
+        }
+        
+        alert(`Claimed ${result.data.bet.winnings.toFixed(2)} INR at ${multiplier.toFixed(2)}x`);
+        setHasPlacedBet(false);
+        setUserBetInCurrentGame(null);
+        
+        // Update leaderboard
+        setTimeout(() => {
+          updateLeaderboard();
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Failed to claim winnings:', error);
+      alert(error.message || 'Failed to claim winnings');
     }
   };
 
@@ -221,6 +468,63 @@ const CrashGame = () => {
     return () => clearInterval(interval);
   }, [isRunning, isCrashed, rocketControls]);
 
+  // Update leaderboard periodically during game
+  useEffect(() => {
+    let leaderboardInterval;
+    
+    if (currentGameId && (isRunning || showCountdown)) {
+      // Fetch leaderboard every 2 seconds while game is running
+      leaderboardInterval = setInterval(() => {
+        updateLeaderboard();
+      }, 2000);
+    }
+    
+    return () => clearInterval(leaderboardInterval);
+  }, [currentGameId, isRunning, showCountdown]);
+
+  // Auto-start game every 20 seconds (10s wait + 10s game)
+  useEffect(() => {
+    let gameTimer;
+    let waitTimer;
+    let timeoutIds = [];
+    
+    const startAutoGame = async () => {
+      if (!isRunning && !showCountdown) {
+        setIsWaitingForGame(false); // Game is starting, no longer waiting
+        await startGame();
+      }
+    };
+    
+      const initializeGame = async () => {
+        // Create game immediately and wait 1 minute for users to place bets
+        setIsWaitingForGame(true);
+        await createNewGameAndAddParticipants();
+        
+        // Wait 1 minute for users to place bets
+        waitTimer = setTimeout(async () => {
+          setIsWaitingForGame(false);
+          await startAutoGame(); // Start the actual game after 1 minute
+        }, 60000);
+      };
+      
+      // Start first game after 1 minute wait
+      const firstGameTimeout = setTimeout(initializeGame, 60000);
+      
+      // Then start new game cycle every 2 minutes (1 min wait + 1 min game)
+      const intervalId = setInterval(async () => {
+        if (roundOver && !isRunning && !showCountdown) {
+          initializeGame(); // Create game and wait 1 minute
+        }
+      }, 120000); // Check every 2 minutes (1 min wait + 1 min game)
+    
+    return () => {
+      clearTimeout(firstGameTimeout);
+      clearTimeout(waitTimer);
+      clearInterval(intervalId);
+      timeoutIds.forEach(id => clearTimeout(id));
+    };
+  }, [isRunning, roundOver, showCountdown]);
+
   return (
     <div className="space-x1-container">
       {/* Header */}
@@ -240,7 +544,22 @@ const CrashGame = () => {
             </span>
           ))}
         </div>
-        <div className="refresh-icon">↻</div>
+        <div className="header-right">
+          {user ? (
+            <div className="user-info">
+              <span className="username">{user.username || (user.email && user.email.split('@')[0])}</span>
+              <span className="balance">${balance.toFixed(2)}</span>
+              <button className="deposit-btn" onClick={openDepositModal}>Deposit</button>
+              <button className="logout-btn" onClick={handleLogout}>Logout</button>
+            </div>
+          ) : (
+            <div className="auth-buttons">
+              <button className="login-btn" onClick={() => openAuthModal('login')}>Login</button>
+              <button className="signup-btn" onClick={() => openAuthModal('signup')}>Sign Up</button>
+            </div>
+          )}
+          <div className="refresh-icon">↻</div>
+        </div>
       </div>
 
       <div className="main-content">
@@ -449,31 +768,68 @@ const CrashGame = () => {
 
       {/* Bottom Control Bar */}
       <div className="control-bar">
-        <div className="balance">Balance {balance.toFixed(2)} FUN</div>
-        <button className="auto-btn">AUTO</button>
-        
-        <div className="betting-section">
-          <div className="bet-input">
-            <div className="bet-amount">{betAmount.toFixed(2)} FUN</div>
-            <div className="bet-separator">-</div>
-            <div className="bet-multiplier">X</div>
+        <div className="betting-panel">
+          <div className="mode-tabs">
+            <button className="mode-tab active">Bet</button>
+            <button className="mode-tab">Auto</button>
           </div>
-          <button className="place-bet-btn" onClick={placeBet}>
-            PLACE BET (NEXT ROUND)
-          </button>
-        </div>
+          
+          <div className="bet-input-section">
+            <button className="bet-adjust-btn" onClick={() => adjustBetAmount(-1)}>-</button>
+            <input 
+              type="text" 
+              className="bet-amount-input" 
+              value={betAmount.toFixed(2)}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value) || 0;
+                if (value >= 0) setBetAmount(value);
+              }}
+            />
+            <button className="bet-adjust-btn" onClick={() => adjustBetAmount(1)}>+</button>
+          </div>
 
-        <div className="betting-section">
-          <div className="bet-input">
-            <div className="bet-amount">{betAmount.toFixed(2)} FUN</div>
-            <div className="bet-separator">-</div>
-            <div className="bet-multiplier">X</div>
+          <div className="quick-bets">
+            <button className="quick-bet-btn" onClick={() => setBetAmount(100)}>100</button>
+            <button className="quick-bet-btn" onClick={() => setBetAmount(200)}>200</button>
+            <button className="quick-bet-btn" onClick={() => setBetAmount(500)}>500</button>
+            <button className="quick-bet-btn" onClick={() => setBetAmount(1000)}>1,000</button>
           </div>
-          <button className="place-bet-btn" onClick={placeBet}>
-            PLACE BET (NEXT ROUND)
+
+          <button 
+            className="main-bet-btn" 
+            onClick={isRunning && hasPlacedBet ? handleClaim : placeBet}
+            disabled={isRunning && !hasPlacedBet}
+            title={isRunning && !hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
+          >
+            <div>
+              {isRunning && hasPlacedBet ? 'Claim Now' : 'Bet'}
+            </div>
+            <div>
+              {isRunning && hasPlacedBet && userBetInCurrentGame 
+                ? `Cashout ${userBetInCurrentGame.betAmount.toFixed(2)} INR` 
+                : `${betAmount.toFixed(2)} INR`}
+            </div>
           </button>
         </div>
       </div>
+
+      {/* Authentication Modal */}
+      {showAuthModal && (
+        <AuthModal
+          initialMode={authModalMode}
+          onClose={closeAuthModal}
+          onLogin={handleLogin}
+          onSignup={handleSignup}
+        />
+      )}
+
+      {/* Deposit Modal */}
+      {showDepositModal && (
+        <Deposit
+          onClose={closeDepositModal}
+          onDeposit={handleDeposit}
+        />
+      )}
     </div>
   );
 };

@@ -478,99 +478,169 @@ body {
 /* Control Bar */
 .control-bar {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 15px 20px;
-  background: rgba(0, 0, 0, 0.4);
-  border-top: 1px solid #333;
-  height: 80px;
-  min-height: 80px;
+  justify-content: center;
+  padding: 15px;
+  background: #2a2a2a;
 }
 
-.balance {
-  font-size: 16px;
-  color: white;
-  font-weight: 500;
-  min-width: 150px;
+.betting-panel {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  position: relative;
+  max-width: 400px;
+  width: 100%;
 }
 
-.auto-btn {
-  background: #333;
-  color: #ffdd00;
-  border: 1px solid #555;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.auto-btn:hover {
-  background: #444;
-  border-color: #666;
-}
-
-.betting-section {
+.mode-tabs {
+  grid-column: 1 / 4;
   display: flex;
-  align-items: center;
-  gap: 15px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 10px 15px;
+  gap: 0;
+  background: #1a1a1a;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
 }
 
-.bet-input {
+.mode-tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: #2a2a2a;
+  border: none;
+  color: #999;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.mode-tab:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.mode-tab:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.mode-tab.active {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.mode-tab:hover:not(.active) {
+  color: #ccc;
+}
+
+.bet-input-section {
+  grid-column: 1 / 4;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #333;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #555;
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 8px;
 }
 
-.bet-amount {
-  color: white;
+.bet-adjust-btn {
+  width: 36px;
+  height: 36px;
+  background: #2a2a2a;
+  border: 2px solid #333;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.bet-adjust-btn:hover {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.bet-amount-input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  padding: 8px;
+}
+
+.bet-amount-input::placeholder {
+  color: #666;
+}
+
+.quick-bets {
+  grid-column: 1 / 4;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.quick-bet-btn {
+  padding: 10px;
+  background: #2a2a2a;
+  border: 2px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-bet-btn:hover {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.main-bet-btn {
+  grid-column: 1 / 4;
+  padding: 16px;
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.main-bet-btn:hover {
+  background: linear-gradient(135deg, #45a049, #4caf50);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+}
+
+.main-bet-btn:active {
+  transform: translateY(0);
+}
+
+.main-bet-btn div:first-child {
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.main-bet-btn div:last-child {
   font-size: 14px;
   font-weight: 500;
-}
-
-.bet-separator {
-  color: #888;
-  font-size: 14px;
-}
-
-.bet-multiplier {
-  color: #ffdd00;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.place-bet-btn {
-  background: linear-gradient(135deg, #ffdd00 0%, #ffb700 100%);
-  color: #000;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(255, 221, 0, 0.3);
-}
-
-.place-bet-btn:hover {
-  background: linear-gradient(135deg, #ffb700 0%, #ffdd00 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 221, 0, 0.4);
-}
-
-.place-bet-btn:active {
-  transform: translateY(0);
 }
 
 /* Responsive Design */
@@ -624,4 +694,137 @@ body {
     flex: 1;
     min-width: 200px;
   }
+}
+
+/* Authentication Styles */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.username {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.balance {
+  color: #ffdd00;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.deposit-btn {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #000;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.deposit-btn:hover {
+  background: linear-gradient(135deg, #ffaa00, #ffd700);
+  transform: translateY(-1px);
+}
+
+.logout-btn {
+  background: #ff4444;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: #ff6666;
+  transform: translateY(-1px);
+}
+
+.auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-btn, .signup-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.login-btn {
+  background: transparent;
+  color: #888;
+  border: 1px solid #555;
+}
+
+.login-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #777;
+}
+
+.signup-btn {
+  background: linear-gradient(135deg, #ff6b35, #ff8c42);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+}
+
+.signup-btn:hover {
+  background: linear-gradient(135deg, #ff8c42, #ff6b35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+}
+
+/* Animation keyframes for auth modal */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

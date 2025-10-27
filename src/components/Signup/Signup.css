@@ -1,0 +1,299 @@
+.menace-auth-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(8px);
+}
+
+.menace-auth-modal {
+  background: #1a1a1a;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 450px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  border: 1px solid #333;
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.menace-auth-header {
+  padding: 30px 30px 20px;
+  text-align: center;
+  border-bottom: 1px solid #2a2a2a;
+  position: relative;
+}
+
+.menace-auth-header h2 {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.menace-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 28px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.menace-close-btn:hover {
+  color: #fff;
+  background: #2a2a2a;
+}
+
+.menace-auth-form {
+  padding: 30px;
+}
+
+.menace-error-box {
+  background: #ff4757;
+  color: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.menace-form-group {
+  margin-bottom: 20px;
+}
+
+.menace-form-group label {
+  display: block;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.menace-input-wrapper {
+  position: relative;
+}
+
+.menace-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: #2a2a2a;
+  border: 2px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.menace-input:focus {
+  outline: none;
+  border-color: #ffd700;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+}
+
+.menace-input::placeholder {
+  color: #666;
+}
+
+.menace-input-error {
+  width: 100%;
+  padding: 14px 16px;
+  background: #2a2a2a;
+  border: 2px solid #ff4757;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.menace-error-text {
+  color: #ff4757;
+  font-size: 12px;
+  margin-top: 6px;
+  display: block;
+}
+
+.menace-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #999;
+  font-size: 20px;
+  transition: color 0.3s ease;
+}
+
+.menace-password-toggle:hover {
+  color: #ffd700;
+}
+
+.menace-submit-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.menace-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4);
+}
+
+.menace-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.menace-social-section {
+  margin: 30px 0 20px;
+  text-align: center;
+}
+
+.menace-or-text {
+  color: #999;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 15px;
+}
+
+.menace-social-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.menace-social-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.menace-social-btn.google {
+  background: #db4437;
+}
+
+.menace-social-btn.telegram {
+  background: #0088cc;
+}
+
+.menace-social-btn:hover {
+  transform: scale(1.1);
+}
+
+.menace-social-icon {
+  font-size: 22px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.menace-auth-footer {
+  padding-top: 20px;
+  text-align: center;
+  border-top: 1px solid #2a2a2a;
+}
+
+.menace-footer-text {
+  color: #999;
+  font-size: 14px;
+}
+
+.menace-link {
+  background: none;
+  border: none;
+  color: #ffd700;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  text-decoration: underline;
+}
+
+.menace-link:hover {
+  color: #ffaa00;
+}
+
+/* Toggle Tabs */
+.menace-toggle-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+  background: #2a2a2a;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.menace-tab {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #999;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.menace-tab.active {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #000;
+}
+
+.menace-tab:hover:not(:disabled) {
+  color: #000;
+}
+
+.menace-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menace-tab-icon {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
