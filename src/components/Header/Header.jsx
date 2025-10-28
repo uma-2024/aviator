@@ -17,7 +17,7 @@ const Header = ({ gameHistory, onRefresh }) => {
           </span>
         ))}
       </div>
-      <div className="refresh-icon" onClick={onRefresh}>↻</div>
+      {/* <div className="refresh-icon" onClick={onRefresh}>↻</div> */}
     </div>
   );
 };

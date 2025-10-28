@@ -305,12 +305,96 @@ const getGame = async (req, res) => {
   }
 };
 
+// @desc    Record crash multiplier
+// @route   POST /api/games/record-crash
+// @access  Public
+const recordCrashMultiplier = async (req, res) => {
+  try {
+    const { multiplier, gameId } = req.body;
+
+    if (!multiplier || !gameId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide multiplier and gameId'
+      });
+    }
+
+    // Update the game with crash multiplier
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({
+        success: false,
+        message: 'Game not found'
+      });
+    }
+
+    game.crashMultiplier = multiplier;
+    game.status = 'crashed';
+    game.endTime = Date.now();
+    await game.save();
+
+    console.log('Crash recorded:', {
+      gameId: gameId,
+      multiplier: multiplier,
+      timestamp: new Date().toISOString()
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Crash multiplier recorded',
+      data: {
+        gameId: gameId,
+        crashMultiplier: multiplier
+      }
+    });
+  } catch (error) {
+    console.error('Error recording crash:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to record crash'
+    });
+  }
+};
+
+// @desc    Get last 10 crash multipliers
+// @route   GET /api/games/history
+// @access  Public
+const getCrashHistory = async (req, res) => {
+  try {
+    const games = await Game.find({ 
+      status: 'crashed',
+      crashMultiplier: { $exists: true, $ne: null }
+    })
+      .sort({ endTime: -1 })
+      .limit(10)
+      .select('crashMultiplier endTime');
+
+    const history = games.map(game => ({
+      multiplier: game.crashMultiplier,
+      timestamp: game.endTime
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: history
+    });
+  } catch (error) {
+    console.error('Error getting crash history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get crash history'
+    });
+  }
+};
+
 module.exports = {
   createGame,
   joinGame,
   cashOut,
   endGame,
   getGame,
-  batchAddParticipants
+  batchAddParticipants,
+  recordCrashMultiplier,
+  getCrashHistory
 };
 

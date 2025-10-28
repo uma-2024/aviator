@@ -3,7 +3,7 @@ import { motion, useAnimation } from "framer-motion";
 import rocketGif from "../Assets/Rocket.gif";
 import AuthModal from "./AuthModal/AuthModal.jsx";
 import Deposit from "./Deposit/Deposit.jsx";
-import { createGame, endGame, batchAddParticipants, getGame, placeBetAPI, claimWinnings } from "../services/api.js";
+import { createGame, endGame, batchAddParticipants, getGame, placeBetAPI, claimWinnings, recordCrashMultiplier, getCrashHistory } from "../services/api.js";
 import "./CrashGame.css";
 
 const CrashGame = () => {
@@ -33,19 +33,8 @@ const CrashGame = () => {
   const [showCrashEffect, setShowCrashEffect] = useState(false);
   const [crashPosition, setCrashPosition] = useState({ x: 0, y: 0 });
   const [maxMultiplier, setMaxMultiplier] = useState(1.5);
-  const [gameHistory, setGameHistory] = useState([1.66, 1.04, 1.24, 7.60, 1.88, 32.21, 3.59, 1.21, 1.86, 3.25]);
-  const [leaderboard, setLeaderboard] = useState([
-    { name: "Yvy****", amount: 100.00 },
-    { name: "Eot*** **", amount: 60.00 },
-    { name: "wak*", amount: 50.00 },
-    { name: "Elu*", amount: 50.00 },
-    { name: "48********", amount: 40.00 },
-    { name: "16********", amount: 40.00 },
-    { name: "Yvy****", amount: 40.00 },
-    { name: "16********", amount: 30.00 },
-    { name: "gor** ****", amount: 30.00 },
-    { name: "Uro*** **", amount: 4.00 }
-  ]);
+  const [gameHistory, setGameHistory] = useState([1.66, 1.04, 1.24, 7.60, 1.88, 32.21, 3.59, 1.21, 1.86, 3.25].slice(0, 10));
+  const [leaderboard, setLeaderboard] = useState([]);
   const rocketControls = useAnimation();
 
   // Example crash point (from backend later)
@@ -93,6 +82,23 @@ const CrashGame = () => {
         localStorage.removeItem('token');
       }
     }
+  }, []);
+
+  // Fetch crash history on component mount
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const result = await getCrashHistory();
+        if (result.success && result.data) {
+          const multipliers = result.data.map(game => game.multiplier);
+          setGameHistory(multipliers.slice(0, 10));
+        }
+      } catch (error) {
+        console.error('Failed to fetch crash history:', error);
+      }
+    };
+    
+    fetchHistory();
   }, []);
 
   // Fetch and update leaderboard from current game
@@ -205,7 +211,7 @@ const CrashGame = () => {
           setUserBetInCurrentGame(null); // Reset user bet info
         }, 1000);
       }
-    }, 60000); // 1 minute game duration
+    }, 10000); // 10 seconds game duration
   };
   
   // Create new game at the start of waiting period
@@ -364,9 +370,6 @@ const CrashGame = () => {
         const graphStartY = 20;  // Top edge
         const graphEndY = 280;   // X-axis position
         
-        // Rocket position (parabolic path from 0,0 axis intersection)
-        const progress = Math.min(t / 12, 1); // Progress from 0 to 1 over 12 seconds (much slower)
-        
         // Start from axis intersection (0,0) - bottom left of graph area
         const axisX = graphStartX; // Y-axis position (x=40)
         const axisY = graphEndY;   // X-axis position (y=280)
@@ -375,49 +378,48 @@ const CrashGame = () => {
         const currentMaxMultiplier = Math.max(maxMultiplier, 1.5); // Start with base max
         const graphHeight = graphEndY - graphStartY; // Total graph height
         
-        // Parabola equation: y = ax² (opening upward from origin)
-        const parabolaA = 0.5; // Controls the steepness of the parabola
-        const maxX = graphEndX - graphStartX - 20; // Maximum X distance
+        const maxX = graphEndX - graphStartX - 20; // Maximum X distance (320)
         
-        // Calculate parabolic path from axis intersection
-        const rocketX = axisX + progress * maxX; // Moves from axis to right
-        const normalizedX = progress * maxX; // Normalize x to graph coordinates
+        // SMOOTH CURVED ANIMATION - Rocket follows a parabolic path
+        const progress = Math.min(t / 10, 1); // Time progress from 0 to 1 over 10 seconds
         
-        // Calculate multiplier based on time progression (slow growth)
-        // This ensures slow multiplier growth as rocket moves
-        const timeMultiplier = 1 + (t * 0.08) ** 1.5; // Growth curve (much slower)
+        // Smooth easing for better animation
+        const easeOutQuad = (x) => 1 - (1 - x) * (1 - x);
+        const smoothedProgress = easeOutQuad(progress);
         
-        // Update max multiplier for dynamic Y-axis scaling
-        if (timeMultiplier > maxMultiplier) {
-          setMaxMultiplier(Math.ceil(timeMultiplier * 1.2)); // Add 20% buffer
+        // Y-axis: Rocket moves up along a curved path as multiplier increases
+        // Slower growth - helps when reaching 1.5x and beyond
+        const timeMultiplier = 1 + (t * 0.15) ** 1.4;
+        const calculatedMultiplier = Math.min(timeMultiplier, crashPoint.current);
+        
+        // X and Y axis movement based exactly on multiplier value
+        const multiplierRange = Math.max(currentMaxMultiplier, crashPoint.current) - 1.0;
+        
+        // Calculate multiplier progress: 0 to 1 based on actual multiplier value
+        let multiplierProgress = 0;
+        if (calculatedMultiplier > 1.0 && multiplierRange > 0) {
+          multiplierProgress = (calculatedMultiplier - 1.0) / multiplierRange;
         }
         
-        const calculatedMultiplier = timeMultiplier;
+        // X-axis: Rocket moves smoothly from left (40) to ~70% of max distance
+        const maxXDistance = graphEndX - graphStartX - 20; // 320px
+        const rocketX = axisX + (multiplierProgress * maxXDistance * 0.75);
         
-        // Calculate rocket Y position to exactly match the orange multiplier value
-        // When multiplier = 1.0x: rocket at Y-axis (y = 280)
-        // When multiplier = currentMax: rocket at top (y = 20)
-        const multiplierRange = currentMaxMultiplier - 1.0; // Range from 1.0x to current max
-        const multiplierProgress = (calculatedMultiplier - 1.0) / multiplierRange; // 0 to 1
-        const rocketY = axisY - (multiplierProgress * graphHeight); // Direct mapping
+        // Y-axis: Rocket moves up exactly matching the Y-axis multiplier value
+        // Multiplier 1.0x = bottom (280), max multiplier = near top
+        let finalRocketY = axisY - (multiplierProgress * graphHeight * 0.85);
         
-        // Keep parabolic X movement but use exact multiplier-based Y position
-        const parabolaY = parabolaA * Math.pow(normalizedX, 2) / 200; // For X movement only
-        let finalRocketY = rocketY; // Use exact multiplier-based Y position
-        
-        // Ensure rocket Y position exactly matches the orange multiplier value
-        // This makes the rocket position = orange multiplier position on Y-axis
-        const exactY = 285 - ((calculatedMultiplier - 1.0) / (currentMaxMultiplier - 1.0)) * 240;
-        finalRocketY = exactY;
-        
-        // Update Y-axis labels based on current multiplier value
-        // This ensures Y-axis always shows appropriate range for current multiplier
-        const newMaxMultiplier = Math.max(calculatedMultiplier * 1.5, 1.5); // Show 50% above current
-        if (newMaxMultiplier > maxMultiplier) {
-          setMaxMultiplier(newMaxMultiplier);
+        // Ensure rocket stays at starting position at multiplier 1.0
+        if (calculatedMultiplier <= 1.0) {
+          finalRocketY = axisY; // Bottom of graph
         }
         
-        // Update multiplier based on rocket position
+        // Update max multiplier for dynamic axis scaling
+        if (calculatedMultiplier > maxMultiplier) {
+          setMaxMultiplier(Math.ceil(calculatedMultiplier * 1.2));
+        }
+        
+        // Update multiplier display
         setMultiplier(parseFloat(calculatedMultiplier.toFixed(2)));
         
         // Keep rocket visible on screen - limit Y position to stay within graph bounds
@@ -429,11 +431,19 @@ const CrashGame = () => {
         setRocketTrail(prev => [...prev.slice(-20), { x: rocketX, y: finalRocketY, time: t }]);
         
         if (calculatedMultiplier >= crashPoint.current) {
+          const crashValue = parseFloat(crashPoint.current.toFixed(2));
           setIsCrashed(true);
           setIsRunning(false);
-          setMultiplier(parseFloat(crashPoint.current.toFixed(2)));
-          setGameHistory(prev => [parseFloat(crashPoint.current.toFixed(2)), ...prev.slice(0, 9)]);
+          setMultiplier(crashValue);
+          setGameHistory(prev => [crashValue, ...prev.slice(0, 9)]);
           setShowStatus(true);
+          
+          // Record crash multiplier to backend
+          if (currentGameId) {
+            recordCrashMultiplier(currentGameId, crashValue)
+              .then(() => console.log('Crash recorded successfully'))
+              .catch(error => console.error('Failed to record crash:', error));
+          }
           
           // Set crash position and show effect
           setCrashPosition({ x: rocketX, y: finalRocketY });
@@ -459,7 +469,10 @@ const CrashGame = () => {
           rocketControls.start({ 
             x: rocketX, 
             y: finalRocketY, 
-            transition: { duration: 0.8 } 
+            transition: { 
+              duration: 0.1,
+              ease: "easeOut"
+            } 
           });
         }
       }, 100);
@@ -503,19 +516,19 @@ const CrashGame = () => {
         // Wait 1 minute for users to place bets
         waitTimer = setTimeout(async () => {
           setIsWaitingForGame(false);
-          await startAutoGame(); // Start the actual game after 1 minute
-        }, 60000);
+          await startAutoGame(); // Start the actual game after 10 seconds
+        }, 10000);
       };
       
-      // Start first game after 1 minute wait
-      const firstGameTimeout = setTimeout(initializeGame, 60000);
+      // Start first game after 10 seconds wait
+      const firstGameTimeout = setTimeout(initializeGame, 10000);
       
-      // Then start new game cycle every 2 minutes (1 min wait + 1 min game)
+      // Then start new game cycle every 20 seconds (10 sec wait + 10 sec game)
       const intervalId = setInterval(async () => {
         if (roundOver && !isRunning && !showCountdown) {
           initializeGame(); // Create game and wait 1 minute
         }
-      }, 120000); // Check every 2 minutes (1 min wait + 1 min game)
+      }, 20000); // Check every 20 seconds (10 sec wait + 10 sec game)
     
     return () => {
       clearTimeout(firstGameTimeout);
@@ -531,19 +544,10 @@ const CrashGame = () => {
       <div className="header">
         <div className="header-left">
           <div className="menu-icon">☰</div>
-          <div className="volume-icon">🔊</div>
+          {/* <div className="volume-icon">🔊</div> */}
         </div>
         <div className="game-title">SPACE X1</div>
-        <div className="game-history">
-          {gameHistory.map((result, index) => (
-            <span 
-              key={index} 
-              className={`history-item ${result > 10 ? 'highlight' : ''}`}
-            >
-              {result.toFixed(2)}x
-            </span>
-          ))}
-        </div>
+       
         <div className="header-right">
           {user ? (
             <div className="user-info">
@@ -558,32 +562,60 @@ const CrashGame = () => {
               <button className="signup-btn" onClick={() => openAuthModal('signup')}>Sign Up</button>
             </div>
           )}
-          <div className="refresh-icon">↻</div>
+          {/* <div className="refresh-icon">↻</div> */}
         </div>
       </div>
-
+      <div className="game-history">
+          {gameHistory.slice(0, 10).map((result, index) => {
+            const isLast = index === gameHistory.slice(0, 10).length - 1;
+            return (
+              <span 
+                key={index} 
+                className={`history-item ${isLast ? 'last-item' : ''}`}
+              >
+                {result.toFixed(2)}x
+              </span>
+            );
+          })}
+        </div>
       <div className="main-content">
         {/* Left Sidebar - Leaderboard */}
         <div className="sidebar">
           <div className="leaderboard-header">
-            <span className="trophy">🏆</span>
-            <span className="dash">-</span>
+            <span className="trophy">🏆 LEADERBOARD</span>
           </div>
-          <div className="leaderboard-list">
-            {leaderboard.map((player, index) => (
-              <div key={index} className="leaderboard-item">
-                <span className="player-name">{player.name}</span>
-                <span className="player-amount">
-                  <span className="fun-icon">●</span>
-                  {player.amount.toFixed(2)} FUN
-                </span>
-              </div>
-            ))}
+          <div className="leaderboard-table">
+            <div className="table-header">
+              <div className="header-cell">Player</div>
+              <div className="header-cell">Bet (INR)</div>
+              <div className="header-cell">Multiplier</div>
+              <div className="header-cell">Win (INR)</div>
+            </div>
+            <div className="table-body">
+              {leaderboard.map((player, index) => (
+                <div key={index} className="table-row">
+                  <div className="table-cell player-cell">{player.name}</div>
+                  <div className="table-cell">{player.betAmount ? player.betAmount.toFixed(2) : '0.00'}</div>
+                  <div className="table-cell multiplier-cell">
+                    {player.cashOutMultiplier ? `${player.cashOutMultiplier.toFixed(2)}x` : 'In Play'}
+                  </div>
+                  <div className="table-cell winnings-cell">
+                    {player.winnings ? player.winnings.toFixed(2) : '0.00'}
+                  </div>
+                </div>
+              ))}
+              {leaderboard.length === 0 && (
+                <div className="empty-state">
+                  No participants yet
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Central Game Area */}
         <div className="game-area">
+          
           <div className="graph-container">
             <svg className="graph" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
               {/* Grid Lines */}
@@ -764,10 +796,7 @@ const CrashGame = () => {
            
           </div>
         </div>
-      </div>
-
-      {/* Bottom Control Bar */}
-      <div className="control-bar">
+        <div className="control-bar">
         <div className="betting-panel">
           <div className="mode-tabs">
             <button className="mode-tab active">Bet</button>
@@ -812,6 +841,10 @@ const CrashGame = () => {
           </button>
         </div>
       </div>
+      </div>
+
+      {/* Bottom Control Bar */}
+     
 
       {/* Authentication Modal */}
       {showAuthModal && (

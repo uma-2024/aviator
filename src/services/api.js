@@ -245,3 +245,41 @@ export const claimWinnings = async (gameId, userId, currentMultiplier) => {
   return await response.json();
 };
 
+// Record crash multiplier
+export const recordCrashMultiplier = async (gameId, multiplier) => {
+  const response = await fetch(`${API_BASE_URL}/games/record-crash`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      gameId,
+      multiplier
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to record crash multiplier');
+  }
+
+  return await response.json();
+};
+
+// Get crash history (last 10 multipliers)
+export const getCrashHistory = async () => {
+  const response = await fetch(`${API_BASE_URL}/games/history`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to get crash history');
+  }
+
+  return await response.json();
+};
+

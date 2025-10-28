@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { createGame, joinGame, cashOut, endGame, getGame, batchAddParticipants } = require('../controllers/gameController');
+const { createGame, joinGame, cashOut, endGame, getGame, batchAddParticipants, recordCrashMultiplier, getCrashHistory } = require('../controllers/gameController');
+
+// Record crash multiplier
+router.post('/record-crash', recordCrashMultiplier);
+
+// Get crash history (last 10 multipliers)
+router.get('/history', getCrashHistory);
 
 // Create a new game
 router.post('/', createGame);

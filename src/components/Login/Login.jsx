@@ -33,10 +33,10 @@ const Login = ({ onLogin, onSwitchToSignup, onClose }) => {
     const newErrors = {};
 
     if (loginType === 'email') {
-      if (!formData.email) {
-        newErrors.email = 'Email is required';
-      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-        newErrors.email = 'Email is invalid';
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
       }
     } else {
       if (!formData.phone) {
@@ -145,16 +145,16 @@ const Login = ({ onLogin, onSwitchToSignup, onClose }) => {
             </label>
             <div className="menace-input-wrapper">
               {loginType === 'email' ? (
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
                   className={errors.email ? 'menace-input-error' : 'menace-input'}
-                  placeholder="Enter your email"
-                  disabled={isLoading}
-                />
+              placeholder="Enter your email"
+              disabled={isLoading}
+            />
               ) : (
                 <input
                   type="tel"
@@ -176,23 +176,23 @@ const Login = ({ onLogin, onSwitchToSignup, onClose }) => {
           <div className="menace-form-group">
             <label htmlFor="password">Password *</label>
             <div className="menace-input-wrapper">
-              <input
+            <input
                 type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
                 className={errors.password ? 'menace-input-error' : 'menace-input'}
-                placeholder="Enter your password"
-                disabled={isLoading}
-              />
+              placeholder="Enter your password"
+              disabled={isLoading}
+            />
               <span 
                 className="menace-password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <FaRegEyeSlash /> : <FaRegEye />}
               </span>
-            </div>
+          </div>
             {errors.password && <span className="menace-error-text">{errors.password}</span>}
           </div>
 
