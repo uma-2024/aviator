@@ -8,6 +8,9 @@ const placeBet = async (req, res) => {
   try {
     const { gameId, userId, betAmount } = req.body;
 
+    // Parse betAmount to ensure it's a number
+    const parsedBetAmount = parseFloat(betAmount);
+
     // Validation
     if (!gameId || !userId || !betAmount) {
       return res.status(400).json({
@@ -16,10 +19,10 @@ const placeBet = async (req, res) => {
       });
     }
 
-    if (betAmount <= 0) {
+    if (isNaN(parsedBetAmount) || parsedBetAmount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Bet amount must be greater than 0'
+        message: 'Bet amount must be a valid number greater than 0'
       });
     }
 
@@ -59,7 +62,7 @@ const placeBet = async (req, res) => {
     }
 
     // Check if user has sufficient balance
-    if (user.balance < betAmount) {
+    if (user.balance < parsedBetAmount) {
       return res.status(400).json({
         success: false,
         message: 'Insufficient balance'
@@ -67,17 +70,17 @@ const placeBet = async (req, res) => {
     }
 
     // Deduct bet amount from user balance
-    user.balance -= betAmount;
+    user.balance = Number((user.balance - parsedBetAmount).toFixed(2));
     await user.save();
 
     // Add participant to game
     game.participants.push({
       user: userId,
-      betAmount: betAmount,
+      betAmount: parsedBetAmount,
       enteredAt: Date.now()
     });
 
-    game.totalBetAmount += betAmount;
+    game.totalBetAmount += parsedBetAmount;
     await game.save();
 
     // Log the bet details
@@ -87,10 +90,29 @@ const placeBet = async (req, res) => {
       username: user.username,
       email: user.email,
       phone: user.phone,
-      betAmount: betAmount,
+      betAmount: parsedBetAmount,
       newBalance: user.balance,
       timestamp: new Date().toISOString()
     });
+
+    // Get the IO instance from req.app.locals
+    const io = req.app.locals.io;
+    if (io) {
+      // Broadcast to all clients that a bet was placed
+      io.emit('bet-placed', {
+        gameId: gameId,
+        participant: {
+          user: {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            phone: user.phone
+          },
+          betAmount: parsedBetAmount,
+          enteredAt: Date.now()
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -104,7 +126,7 @@ const placeBet = async (req, res) => {
         },
         bet: {
           gameId: gameId,
-          betAmount: betAmount,
+          betAmount: parsedBetAmount,
           entryTime: new Date().toISOString()
         }
       }
@@ -202,9 +224,19 @@ const claimWinnings = async (req, res) => {
     }
 
     // Find the participant
-    const participant = game.participants.find(p => p.user._id.toString() === userId);
+    const participant = game.participants.find(p => {
+      const participantUserId = (p.user._id || p.user).toString();
+      return participantUserId === userId;
+    });
     
     if (!participant) {
+      // Log for debugging
+      console.log('Game participants:', game.participants.map(p => ({
+        userId: (p.user._id || p.user).toString(),
+        betAmount: p.betAmount
+      })));
+      console.log('Looking for userId:', userId);
+      
       return res.status(404).json({
         success: false,
         message: 'Participant not found in this game'
@@ -245,6 +277,27 @@ const claimWinnings = async (req, res) => {
       newBalance: user.balance,
       timestamp: new Date().toISOString()
     });
+
+    // Get the IO instance from req.app.locals
+    const io = req.app.locals.io;
+    if (io) {
+      // Broadcast to all clients that winnings were claimed
+      io.emit('winnings-claimed', {
+        gameId: gameId,
+        participant: {
+          user: {
+            _id: participant.user._id || participant.user,
+            username: participant.user.username,
+            email: participant.user.email,
+            phone: participant.user.phone
+          },
+          betAmount: participant.betAmount,
+          cashOutMultiplier: currentMultiplier,
+          winnings: winnings,
+          cashOutTime: participant.cashOutTime
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,

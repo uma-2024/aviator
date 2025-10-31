@@ -119,6 +119,7 @@ body {
   border-right: 1px solid #333;
   padding: 20px;
   overflow-y: auto;
+  width:30%
 }
 
 .leaderboard-header {
@@ -222,6 +223,23 @@ body {
   border-bottom: none;
 }
 
+.table-row.claimed-highlight {
+  background-color: rgba(76, 175, 80, 0.5) !important; /* Green with 0.5 opacity */
+  animation: claimPulse 0.5s ease-in-out;
+}
+
+@keyframes claimPulse {
+  0% {
+    background-color: rgba(76, 175, 80, 0.3);
+  }
+  50% {
+    background-color: rgba(76, 175, 80, 0.7);
+  }
+  100% {
+    background-color: rgba(76, 175, 80, 0.5);
+  }
+}
+
 .table-cell {
   font-size: 12px;
   color: #ccc;
@@ -261,6 +279,7 @@ body {
   flex-direction: column;
   padding: 20px;
   position: relative;
+  width: 50%;
 }
 
 .graph-container {
@@ -275,7 +294,7 @@ body {
 .graph {
   width: 100%;
   height: 100%;
-  background: #2a2a2a;
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .axis-label {
@@ -359,6 +378,36 @@ body {
   font-size: 16px;
   color: white;
   font-weight: 500;
+}
+
+/* Multiplier display inside status circle */
+.status-circle .multiplier-value-display {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ff6b35;
+  text-shadow: 0 0 15px rgba(255, 107, 53, 0.8);
+  margin-bottom: 10px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Crash multiplier display */
+.status-circle .crash-multiplier-display {
+  font-size: 48px;
+  font-weight: bold;
+  color: #ff4444;
+  text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+  margin-bottom: 10px;
+  font-family: 'Courier New', monospace;
+  animation: crashPulse 0.5s ease-in-out infinite;
+}
+
+.status-circle .crash-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 2px;
 }
 
 .countdown-timer {
@@ -458,47 +507,59 @@ body {
 
 /* Crash Effect Animations */
 .crash-glow {
-  animation: crashPulse 0.5s ease-in-out infinite alternate;
+  animation: crashPulse 1s ease-in-out 3;
 }
 
 .crash-bright {
-  animation: crashBright 0.3s ease-in-out infinite alternate;
+  animation: crashBright 0.8s ease-in-out 3;
 }
 
 .crash-center {
-  animation: crashExplosion 0.2s ease-in-out infinite alternate;
+  animation: crashExplosion 0.5s ease-in-out 3;
 }
 
 @keyframes crashPulse {
   0% {
-    r: 60;
+    r: 80;
+    opacity: 0.5;
+  }
+  50% {
+    r: 100;
     opacity: 0.3;
   }
   100% {
     r: 80;
-    opacity: 0.1;
+    opacity: 0.5;
   }
 }
 
 @keyframes crashBright {
   0% {
-    r: 30;
-    opacity: 0.6;
+    r: 50;
+    opacity: 0.7;
+  }
+  50% {
+    r: 60;
+    opacity: 0.5;
   }
   100% {
-    r: 40;
-    opacity: 0.4;
+    r: 50;
+    opacity: 0.7;
   }
 }
 
 @keyframes crashExplosion {
   0% {
     r: 15;
+    opacity: 1;
+  }
+  50% {
+    r: 20;
     opacity: 0.9;
   }
   100% {
-    r: 20;
-    opacity: 0.7;
+    r: 15;
+    opacity: 1;
   }
 }
 
@@ -568,7 +629,9 @@ body {
   display: flex;
   justify-content: center;
   padding: 15px;
-  background: #2a2a2a;
+  background: rgba(0, 0, 0, 0.8);
+  width: 20%;
+
 }
 
 .betting-panel {
@@ -665,6 +728,7 @@ body {
   text-align: center;
   outline: none;
   padding: 8px;
+  width: 100%;
 }
 
 .bet-amount-input::placeholder {
@@ -878,14 +942,14 @@ body {
 }
 
 .signup-btn {
-  background: linear-gradient(135deg, #ff6b35, #ff8c42);
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
   color: #fff;
   border: none;
   box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
 
 .signup-btn:hover {
-  background: linear-gradient(135deg, #ff8c42, #ff6b35);
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
 }

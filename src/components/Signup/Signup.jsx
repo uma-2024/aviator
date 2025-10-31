@@ -42,10 +42,10 @@ const Signup = ({ onSignup, onSwitchToLogin, onClose }) => {
     }
 
     if (signupType === 'email') {
-      if (!formData.email) {
-        newErrors.email = 'Email is required';
-      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-        newErrors.email = 'Email is invalid';
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
       }
     } else {
       if (!formData.phone) {
@@ -136,16 +136,16 @@ const Signup = ({ onSignup, onSwitchToLogin, onClose }) => {
           <div className="menace-form-group">
             <label htmlFor="username">Username *</label>
             <div className="menace-input-wrapper">
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
                 className={errors.username ? 'menace-input-error' : 'menace-input'}
-                placeholder="Choose a username"
-                disabled={isLoading}
-              />
+              placeholder="Choose a username"
+              disabled={isLoading}
+            />
             </div>
             {errors.username && <span className="menace-error-text">{errors.username}</span>}
           </div>
@@ -179,16 +179,16 @@ const Signup = ({ onSignup, onSwitchToLogin, onClose }) => {
             </label>
             <div className="menace-input-wrapper">
               {signupType === 'email' ? (
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
                   className={errors.email ? 'menace-input-error' : 'menace-input'}
-                  placeholder="Enter your email"
-                  disabled={isLoading}
-                />
+              placeholder="Enter your email"
+              disabled={isLoading}
+            />
               ) : (
                 <input
                   type="tel"
@@ -210,16 +210,16 @@ const Signup = ({ onSignup, onSwitchToLogin, onClose }) => {
           <div className="menace-form-group">
             <label htmlFor="password">Password *</label>
             <div className="menace-input-wrapper">
-              <input
+            <input
                 type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
+              id="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
                 className={errors.password ? 'menace-input-error' : 'menace-input'}
                 placeholder="Enter your password"
-                disabled={isLoading}
-              />
+              disabled={isLoading}
+            />
               <span 
                 className="menace-password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
@@ -234,23 +234,23 @@ const Signup = ({ onSignup, onSwitchToLogin, onClose }) => {
           <div className="menace-form-group">
             <label htmlFor="confirmPassword">Confirm Password *</label>
             <div className="menace-input-wrapper">
-              <input
+            <input
                 type={showConfirmPassword ? 'text' : 'password'}
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
+              id="confirmPassword"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
                 className={errors.confirmPassword ? 'menace-input-error' : 'menace-input'}
-                placeholder="Confirm your password"
-                disabled={isLoading}
-              />
+              placeholder="Confirm your password"
+              disabled={isLoading}
+            />
               <span 
                 className="menace-password-toggle"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 {showConfirmPassword ? <FaRegEyeSlash /> : <FaRegEye />}
               </span>
-            </div>
+          </div>
             {errors.confirmPassword && <span className="menace-error-text">{errors.confirmPassword}</span>}
           </div>
 
