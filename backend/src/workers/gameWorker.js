@@ -38,13 +38,14 @@ class GameWorker {
 
       console.log(`Created new game ${game._id} with crash point: ${crashPoint}x`);
       
-      // Broadcast new round to all clients
+      // Broadcast new round to ALL connected clients simultaneously
+      // All users will receive this event at the same time for synchronized countdown
       if (this.io) {
         this.io.emit('new-round', {
           gameId: game._id,
           status: 'waiting',
           countdown: this.waitTime / 1000,
-          timestamp: new Date()
+          timestamp: new Date() // Server timestamp for synchronization
         });
       }
 
@@ -66,7 +67,6 @@ class GameWorker {
 
       const crashPoint = game.crashMultiplier;
       let currentMultiplier = 1.0;
-      const speed = 2.02; // Growth factor
 
       // Update game status to running
       game.status = 'running';
@@ -74,60 +74,94 @@ class GameWorker {
 
       console.log(`Starting game ${gameId} - will crash at ${crashPoint}x`);
 
-      // Broadcast game start
+      // Broadcast game start to ALL connected clients simultaneously
+      // All users will see the game start at the same time
       if (this.io) {
         this.io.emit('game-start', {
           gameId: gameId,
-          timestamp: new Date()
+          timestamp: new Date() // Server timestamp for synchronization
         });
       }
 
-      // Run the multiplier simulation
+      // Run the multiplier simulation - increment in steps (1.0, 1.1, 1.2, 1.3, 1.4...) with speed
       const startTime = Date.now();
-      const interval = 100; // Update every 100ms
-      let lastMultiplierUpdate = 1.0;
-      let lastTimeStep = 0; // Track last time step (0s, 2s, 4s, 6s, etc.)
-
+      const incrementStep = 0.1; // Increment by 0.1 each time (1.0, 1.1, 1.2, 1.3, 1.4...)
+      const speed = 100; // Update interval in milliseconds (lower = faster, higher = slower)
+      // Speed examples: 50ms = very fast, 100ms = fast, 200ms = medium, 500ms = slow
+      
+      console.log(`Starting multiplier count-up from 1.0 to ${crashPoint}x with step ${incrementStep} and speed ${speed}ms`);
+      
+      // Send initial multiplier value (1.0) to ALL connected clients simultaneously
+      // All users will see the multiplier start at 1.0x at the same time
+      // IMPORTANT: Send as number (not integer) to preserve decimal places
+      if (this.io) {
+        const initialMultiplier = Number(1.0);
+        this.io.emit('multiplier-update', {
+          gameId: gameId,
+          multiplier: initialMultiplier, // Ensure it's sent as a float
+          timestamp: new Date() // Server timestamp for synchronization
+        });
+        console.log(`📤 Sent initial multiplier to all clients: ${initialMultiplier}x (type: ${typeof initialMultiplier})`);
+      }
+      
+      // Wait before starting increments
+      await this.sleep(speed);
+      
       while (currentMultiplier < crashPoint) {
-        // Calculate time elapsed in seconds
-        const elapsed = (Date.now() - startTime) / 1000;
+        // Increment multiplier by exactly 0.1 (1.0, 1.1, 1.2, 1.3, 1.4...)
+        const previousMultiplier = currentMultiplier;
+        currentMultiplier = currentMultiplier + incrementStep;
         
-        // Calculate which time step we're at (2s, 4s, 6s, 8s, ...)
-        // Formula: step = floor(elapsed / 2) * 2, then multiplier = step * 2 / 2 = step
-        // Actually: at 2s -> 2x, at 4s -> 4x, at 6s -> 6x, at 8s -> 8x
-        const timeStep = Math.floor(elapsed / 2) * 2; // 0, 2, 4, 6, 8, ...
-        const targetMultiplier = timeStep === 0 ? 1.0 : timeStep; // Start at 1x, then 2x, 4x, 6x, 8x...
+        // Round to 1 decimal place to avoid floating point precision issues
+        currentMultiplier = Math.round(currentMultiplier * 10) / 10;
         
-        // Only update multiplier if we've reached a new time step
-        if (timeStep > lastTimeStep) {
-          currentMultiplier = Math.min(targetMultiplier, crashPoint);
-          lastMultiplierUpdate = currentMultiplier;
-          lastTimeStep = timeStep;
-        } else {
-          // Keep the same multiplier until next time step
-          currentMultiplier = lastMultiplierUpdate;
+        // Ensure we don't exceed crash point
+        if (currentMultiplier >= crashPoint) {
+          currentMultiplier = parseFloat(crashPoint.toFixed(2));
         }
 
-        // Broadcast multiplier update
+        // Log multiplier increment for debugging
+        console.log(`📤 Multiplier: ${previousMultiplier.toFixed(1)} → ${currentMultiplier.toFixed(1)}x`);
+
+        // Broadcast multiplier update to ALL connected clients simultaneously
+        // All users will receive the same multiplier value at the same time
+        // IMPORTANT: Send as number (not integer) to preserve decimal places
         if (this.io) {
+          // Ensure we send a float value, not an integer
+          const multiplierToSend = Number(currentMultiplier.toFixed(2));
           this.io.emit('multiplier-update', {
             gameId: gameId,
-            multiplier: parseFloat(currentMultiplier.toFixed(2)),
-            timestamp: new Date()
+            multiplier: multiplierToSend, // This will be serialized correctly as a float
+            timestamp: new Date() // Server timestamp for synchronization
           });
+          console.log(`📡 Emitted multiplier to all clients: ${multiplierToSend}x (type: ${typeof multiplierToSend})`);
+        }
+
+        // Check if we've reached or exceeded crash point BEFORE waiting
+        if (currentMultiplier >= crashPoint) {
+          console.log(`Reached crash point: ${crashPoint}x`);
+          // Send final multiplier update
+          if (this.io) {
+            const finalMultiplier = Number(crashPoint.toFixed(2));
+            this.io.emit('multiplier-update', {
+              gameId: gameId,
+              multiplier: finalMultiplier,
+              timestamp: new Date()
+            });
+            console.log(`📡 Sent final multiplier: ${finalMultiplier}x`);
+          }
+          break;
         }
 
         // Check if we've exceeded game duration
-        if (Date.now() - startTime >= this.gameDuration) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed >= this.gameDuration) {
+          console.log('Game duration exceeded');
           break;
         }
 
-        // Check if we've reached or exceeded crash point
-        if (currentMultiplier >= crashPoint) {
-          break;
-        }
-
-        await this.sleep(interval);
+        // Wait before next increment to ensure proper timing
+        await this.sleep(speed);
       }
 
       // Game crashed!
@@ -137,12 +171,13 @@ class GameWorker {
 
       console.log(`Game ${gameId} crashed at ${crashPoint.toFixed(2)}x`);
 
-      // Broadcast crash
+      // Broadcast crash to ALL connected clients simultaneously
+      // All users will see the crash at the same time
       if (this.io) {
         this.io.emit('game-crashed', {
           gameId: gameId,
           multiplier: crashPoint,
-          timestamp: new Date()
+          timestamp: new Date() // Server timestamp for synchronization
         });
       }
 
