@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { registerUser, googleAuth } from '../../services/api';
+import { registerUser } from '../../services/api';
 import { MdPhoneIphone, MdOutlineEmail } from 'react-icons/md';
 import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa';
 import './Signup.css';

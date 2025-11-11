@@ -43,16 +43,16 @@ const CrashGame = () => {
   const [countdown, setCountdown] = useState(5);
   const [currentGameId, setCurrentGameId] = useState(null);
   const currentGameIdRef = useRef(null);
-  const [pendingParticipants, setPendingParticipants] = useState([]);
+  // const [pendingParticipants, setPendingParticipants] = useState([]); // Unused - removed for build
   const [showCountdown, setShowCountdown] = useState(false);
   const [hasPlacedBet, setHasPlacedBet] = useState(false);
   const [isWaitingForGame, setIsWaitingForGame] = useState(false);
   const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);
-  const [showStatus, setShowStatus] = useState(true);
+  const [showStatus] = useState(true); // Used in JSX, but setter not needed
   const [rocketTrail, setRocketTrail] = useState([]);
   const [showCrashEffect, setShowCrashEffect] = useState(false);
   const [crashPosition, setCrashPosition] = useState({ x: 0, y: 0 });
-  const [maxMultiplier, setMaxMultiplier] = useState(1.5);
+  // const [maxMultiplier, setMaxMultiplier] = useState(1.5); // Unused - removed for build
   const [gameHistory, setGameHistory] = useState([1.66, 1.04, 1.24, 7.60, 1.88, 32.21, 3.59, 1.21, 1.86, 3.25].slice(0, 10));
   const [leaderboard, setLeaderboard] = useState([]);
   const [claimedUserIds, setClaimedUserIds] = useState(new Set()); // Track recently claimed users
@@ -69,14 +69,14 @@ const CrashGame = () => {
     || 'http://localhost:5000';
   const FORCE_BACKEND = ((typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_FORCE_BACKEND) ?? 'true') === 'true';
 
-  // Example crash point (from backend later)
-  const crashPoint = useRef(Math.random() * 5 + 1.2);
+  // Example crash point (from backend later) - unused, removed for build
+  // const crashPoint = useRef(Math.random() * 5 + 1.2);
   
   // Socket.IO connection
   const socketRef = useRef(null);
   
-  // Track if game loop is initialized
-  const gameLoopInitialized = useRef(false);
+  // Track if game loop is initialized - unused, removed for build
+  // const gameLoopInitialized = useRef(false);
 
   // Authentication functions
   const handleLogin = (userData, token) => {
@@ -474,6 +474,9 @@ const CrashGame = () => {
       socket.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
+    // SOCKET_URL and FORCE_BACKEND are constants that don't change
+    // updateLeaderboard is a stable useCallback function
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Demo mode loop: simulate countdown, game run, multiplier updates, and crash
@@ -641,10 +644,10 @@ const CrashGame = () => {
       setBets(prev => prev + 1);
         setHasPlacedBet(true);
         setUserBetInCurrentGame({ betAmount, gameId: null });
-        setPendingParticipants(prev => [...prev, {
-          userId: user._id || user.id,
-          betAmount: betAmount
-        }]);
+        // setPendingParticipants(prev => [...prev, { // Unused - removed for build
+        //   userId: user._id || user.id,
+        //   betAmount: betAmount
+        // }]);
         console.log(`Added user ${user.username || user.email || user.phone} to pending participants for next game`);
       }
     } else if (!user) {
@@ -746,7 +749,7 @@ const CrashGame = () => {
     const graphEndY = 280;   // X-axis position
     const axisX = graphStartX;
     const axisY = graphEndY;
-    const graphHeight = graphEndY - graphStartY;
+    // const graphHeight = graphEndY - graphStartY; // Unused - removed for build
     
     // If not running (cooldown period), show rocket at starting position
     // All browsers will show the same starting position
@@ -822,7 +825,7 @@ const CrashGame = () => {
       const graphEndY = 280;
       const axisX = graphStartX;
       const axisY = graphEndY;
-      const graphHeight = graphEndY - graphStartY;
+      // const graphHeight = graphEndY - graphStartY; // Unused - removed for build
       
       const fixedMax = 10; // Fixed scale: 1.0 to 10
       const finalMultiplier = multiplier;

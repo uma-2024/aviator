@@ -4,9 +4,9 @@ import './Deposit.css';
 
 const Deposit = ({ onClose, onDeposit }) => {
   const [tab, setTab] = useState('fiat'); // 'crypto' or 'fiat'
-  const [paymentMethod, setPaymentMethod] = useState('India');
-  const [depositCurrency, setDepositCurrency] = useState('INR');
-  const [depositMethod, setDepositMethod] = useState('UPI Fast');
+  const [paymentMethod] = useState('India'); // Used but setter not needed
+  const [depositCurrency] = useState('INR'); // Used in JSX and handleDeposit, but setter not needed
+  const [depositMethod] = useState('UPI Fast'); // Used in JSX and handleDeposit, but setter not needed
   const [amount, setAmount] = useState('500');
   const [selectedBonus, setSelectedBonus] = useState('no-bonus');
 
@@ -143,10 +143,10 @@ const Deposit = ({ onClose, onDeposit }) => {
                 onChange={() => setSelectedBonus('no-bonus')}
               />
             </div>
-            <a href="#" className="see-all-bonuses">
+            <button type="button" className="see-all-bonuses" onClick={(e) => e.preventDefault()}>
               See All Bonuses
               <span>▼</span>
-            </a>
+            </button>
           </div>
 
           {/* Deposit Button */}
