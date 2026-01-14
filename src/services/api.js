@@ -283,3 +283,67 @@ export const getCrashHistory = async () => {
   return await response.json();
 };
 
+// Razorpay API functions
+export const createRazorpayOrder = async (amount, userId) => {
+  const token = localStorage.getItem('token');
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/payments/create-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify({
+        amount: amount * 100, // Convert to paise (Razorpay expects amount in smallest currency unit)
+        userId,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Payment endpoint not found. Please ensure the backend payment endpoints are implemented.');
+      }
+      const error = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
+      throw new Error(error.error || `Failed to create payment order (Status: ${response.status})`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error.message.includes('fetch')) {
+      throw new Error('Cannot connect to server. Please check if the backend is running.');
+    }
+    throw error;
+  }
+};
+
+export const verifyRazorpayPayment = async (paymentData) => {
+  const token = localStorage.getItem('token');
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/payments/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: JSON.stringify(paymentData),
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Payment verification endpoint not found. Please ensure the backend payment endpoints are implemented.');
+      }
+      const error = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
+      throw new Error(error.error || `Payment verification failed (Status: ${response.status})`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    if (error.message.includes('fetch')) {
+      throw new Error('Cannot connect to server. Please check if the backend is running.');
+    }
+    throw error;
+  }
+};
+

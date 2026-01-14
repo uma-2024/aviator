@@ -600,11 +600,12 @@ const CrashGame = () => {
     setShowDepositModal(false);
   };
 
-  // Set initial rocket position at (0,0) when component mounts
+  // Set initial rocket position at bottom when component mounts
   useEffect(() => {
     const graphStartX = 40;  // Y-axis position
-    const graphEndY = 280;   // X-axis position
-    rocketControls.set({ x: graphStartX, y: graphEndY });
+    const graphEndY = 280;   // X-axis position (bottom of graph)
+    // Set initial position immediately without animation
+    rocketControls.set({ x: graphStartX, y: graphEndY, opacity: 1 });
   }, [rocketControls]);
 
   // OLD GAME LOGIC REMOVED - Backend worker now controls all game logic via Socket.IO
@@ -746,14 +747,15 @@ const CrashGame = () => {
     const graphStartX = 40;  // Y-axis position
     const graphEndX = 380;   // Right edge
     const graphStartY = 20;  // Top edge
-    const graphEndY = 280;   // X-axis position
+    const graphEndY = 280;   // X-axis position (bottom of graph)
     const axisX = graphStartX;
     const axisY = graphEndY;
     // const graphHeight = graphEndY - graphStartY; // Unused - removed for build
     
-    // If not running (cooldown period), show rocket at starting position
+    // If not running (cooldown period) or crashed, show rocket at starting position (bottom)
     // All browsers will show the same starting position
-    if (!isRunning) {
+    if (!isRunning || isCrashed) {
+      // Always reset to bottom position when game is not running
       rocketControls.set({ x: axisX, y: axisY, opacity: 1 });
       return;
     }
@@ -1178,6 +1180,7 @@ const CrashGame = () => {
               
               {/* Animated Rocket */}
               <motion.g
+                initial={{ x: 40, y: 280, opacity: 1 }}
                 animate={rocketControls}
                 className="rocket-graph"
               >
@@ -1302,6 +1305,7 @@ const CrashGame = () => {
         <Deposit
           onClose={closeDepositModal}
           onDeposit={handleDeposit}
+          user={user}
         />
       )}
     </div>
