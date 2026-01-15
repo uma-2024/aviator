@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, useAnimation } from "framer-motion";
-import { io } from "socket.io-client";
+import { HiSpeakerWave } from "react-icons/hi2";
+import { RxSpeakerOff } from "react-icons/rx";
 import rocketGif from "../Assets/Rocket.gif";
 import AuthModal from "./AuthModal/AuthModal.jsx";
 import Deposit from "./Deposit/Deposit.jsx";
@@ -8,20 +9,68 @@ import { placeBetAPI, claimWinnings, getCrashHistory, getCurrentUser, getGame } 
 import "./CrashGame.css";
 
 const CrashGame = () => {
-  // Dummy leaderboard data (used when no live data is available)
-  const DUMMY_LEADERBOARD = [
-    { name: 'Ali***', betAmount: 150.0, cashOutMultiplier: 2.35, winnings: 352.5 },
-    { name: 'Pra***', betAmount: 500.0, cashOutMultiplier: 1.75, winnings: 875.0 },
-    { name: 'Sam**', betAmount: 75.0, cashOutMultiplier: 3.10, winnings: 232.5 },
-    { name: 'Ank***', betAmount: 320.0, cashOutMultiplier: 1.25, winnings: 400.0 },
-    { name: 'Rah**', betAmount: 50.0, cashOutMultiplier: null, winnings: 0 },
+  // Fake usernames pool for generating realistic fake members
+  const FAKE_USERNAMES = [
+    'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
+    'Rah', 'Tom', 'Jer', 'Max', 'Leo', 'Zoe', 'Kim', 'Dan', 'Eva', 'Roy',
+    'Ivy', 'Ben', 'Amy', 'Jay', 'Kay', 'Rob', 'Tim', 'Joe', 'Bob', 'Pat'
   ];
+
+  // Generate a fake user with masked name
+  const generateFakeUser = () => {
+    const baseName = FAKE_USERNAMES[Math.floor(Math.random() * FAKE_USERNAMES.length)];
+    const nameLength = baseName.length;
+    const maskLength = Math.floor(Math.random() * 3) + 2; // 2-4 asterisks
+    const maskedName = baseName + '*'.repeat(maskLength);
+
+    const betAmount = Math.floor(Math.random() * 900 + 10); // 10-1000
+    // 70% chance of having cashed out, 30% chance still in play
+    const hasCashedOut = Math.random() > 0.3;
+    const cashOutMultiplier = hasCashedOut
+      ? parseFloat((1.05 + Math.random() * 8.95).toFixed(2)) // 1.05x to 10.0x
+      : null;
+    const winnings = hasCashedOut
+      ? parseFloat((betAmount * cashOutMultiplier).toFixed(2))
+      : (Math.random() > 0.5 ? 1.00 : 0.00); // Some losses show 1.00 FUN
+
+    return {
+      name: maskedName,
+      betAmount: betAmount,
+      cashOutMultiplier: cashOutMultiplier,
+      winnings: winnings,
+      userId: `fake_${Date.now()}_${Math.random()}`,
+      isFake: true
+    };
+  };
   // Authentication state
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' or 'signup'
   const [showDepositModal, setShowDepositModal] = useState(false);
-  
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(() => {
+    const saved = localStorage.getItem('musicVolume');
+    return saved ? parseInt(saved) : 80;
+  });
+  const [musicMuted, setMusicMuted] = useState(() => {
+    const saved = localStorage.getItem('musicMuted');
+    return saved === 'true';
+  });
+  const [soundFxVolume, setSoundFxVolume] = useState(() => {
+    const saved = localStorage.getItem('soundFxVolume');
+    return saved ? parseInt(saved) : 80;
+  });
+  const [soundFxMuted, setSoundFxMuted] = useState(() => {
+    const saved = localStorage.getItem('soundFxMuted');
+    return saved === 'true';
+  });
+  const [viewInFun, setViewInFun] = useState(() => {
+    const saved = localStorage.getItem('viewInFun');
+    return saved === 'true';
+  });
+  const [menuIconPosition, setMenuIconPosition] = useState({ top: 0, left: 0 });
+  const menuIconRef = useRef(null);
+
   // Game state
   const [multiplier, setMultiplier] = useState(1.0);
   const [displayMultiplier, setDisplayMultiplier] = useState(1.0); // smoothed UI multiplier
@@ -31,16 +80,21 @@ const CrashGame = () => {
   const toMultiplierRef = useRef(1.0);
   const rafRef = useRef(null);
   const lastTargetRef = useRef(1.0);
-  
+
   const [isCrashed, setIsCrashed] = useState(false);
   const isCrashedRef = useRef(false);
   const [roundOver, setRoundOver] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const isRunningRef = useRef(false);
   const [balance, setBalance] = useState(1000.00);
-  const [betAmount, setBetAmount] = useState(1.00);
+  const [betAmount, setBetAmount] = useState(50.00);
+  const [betAmount2, setBetAmount2] = useState(50.00); // Second betting slot
   const [bets, setBets] = useState(12);
+  const [autoMode, setAutoMode] = useState(false);
+  const [autoMultiplier, setAutoMultiplier] = useState(null);
+  const [autoMultiplier2, setAutoMultiplier2] = useState(null); // Second slot multiplier
   const [countdown, setCountdown] = useState(5);
+  const [smoothCountdown, setSmoothCountdown] = useState(5); // For smooth circular animation
   const [currentGameId, setCurrentGameId] = useState(null);
   const currentGameIdRef = useRef(null);
   // const [pendingParticipants, setPendingParticipants] = useState([]); // Unused - removed for build
@@ -56,25 +110,20 @@ const CrashGame = () => {
   const [gameHistory, setGameHistory] = useState([1.66, 1.04, 1.24, 7.60, 1.88, 32.21, 3.59, 1.21, 1.86, 3.25].slice(0, 10));
   const [leaderboard, setLeaderboard] = useState([]);
   const [claimedUserIds, setClaimedUserIds] = useState(new Set()); // Track recently claimed users
+  const [fakeMembers, setFakeMembers] = useState([]); // Fake members for realistic look
+  const fakeMembersIntervalRef = useRef(null);
+  const fakeMembersAddedRef = useRef(0);
+  const cashOutIntervalRef = useRef(null); // Interval for cashing out members during game
+  const cashedOutCountRef = useRef(0); // Track how many members have cashed out
   const rocketControls = useAnimation();
 
-  // Demo mode fallback (opt-in only). UI should use backend by default.
-  const [demoMode, setDemoMode] = useState(false);
-  const demoInitializedRef = useRef(false);
-  const lastMultiplierHandleTsRef = useRef(0);
-  const countdownEndTsRef = useRef(null);
-  const lastCountdownDisplayRef = useRef(null);
-  const SOCKET_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SOCKET_URL)
-    || (typeof process !== 'undefined' && process.env && process.env.REACT_APP_SOCKET_URL)
-    || 'http://localhost:5000';
-  const FORCE_BACKEND = ((typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_FORCE_BACKEND) ?? 'true') === 'true';
+  // Frontend-only game mode - generates random multipliers locally
+  const gameIntervalRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
+  const crashPointRef = useRef(null);
+  const lastUpdateTimeRef = useRef(null);
+  const currentMultiplierRef = useRef(1.0);
 
-  // Example crash point (from backend later) - unused, removed for build
-  // const crashPoint = useRef(Math.random() * 5 + 1.2);
-  
-  // Socket.IO connection
-  const socketRef = useRef(null);
-  
   // Track if game loop is initialized - unused, removed for build
   // const gameLoopInitialized = useRef(false);
 
@@ -105,7 +154,7 @@ const CrashGame = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
   };
-  
+
   // Check for saved user on component mount and fetch from API
   useEffect(() => {
     const loadUser = async () => {
@@ -126,7 +175,7 @@ const CrashGame = () => {
         }
       }
     };
-    
+
     loadUser();
   }, []);
 
@@ -152,27 +201,28 @@ const CrashGame = () => {
       if (gameData.success && gameData.data && gameData.data.participants) {
         // Transform participants to leaderboard format
         const leaderboardData = gameData.data.participants.map((participant) => {
-          const username = participant.user?.username || 
-                         (participant.user?.email ? participant.user.email.split('@')[0] : 'Anonymous');
+          const username = participant.user?.username ||
+            (participant.user?.email ? participant.user.email.split('@')[0] : 'Anonymous');
           // Mask username
-          const maskedName = username.length > 5 
+          const maskedName = username.length > 5
             ? username.substring(0, 3) + '*'.repeat(username.length - 3)
             : username.substring(0, 2) + '*'.repeat(username.length - 2);
-          
+
           return {
             name: maskedName,
             amount: participant.betAmount,
             userId: participant.user?._id || participant.user,
             betAmount: participant.betAmount,
             cashOutMultiplier: participant.cashOutMultiplier || null,
-            winnings: participant.winnings || 0
+            winnings: participant.winnings || 0,
+            isFake: false // Mark as real user
           };
         });
-        
+
         // Sort by bet amount descending
         leaderboardData.sort((a, b) => b.amount - a.amount);
         setLeaderboard(leaderboardData);
-        
+
         // Remove highlights for users whose data has been reloaded (they now have cashOutMultiplier)
         setClaimedUserIds(prev => {
           const newSet = new Set(prev);
@@ -192,373 +242,350 @@ const CrashGame = () => {
     }
   }, []);
 
-  // Initialize Socket.IO connection and listen to game events
+  // Frontend-only game loop - generates random multipliers locally
   useEffect(() => {
+    // Keep refs in sync with state
     currentGameIdRef.current = currentGameId;
-  }, [currentGameId]);
-
-  // Keep refs in sync with state for socket handlers
-  useEffect(() => {
     isRunningRef.current = isRunning;
-  }, [isRunning]);
-
-  useEffect(() => {
     isCrashedRef.current = isCrashed;
-  }, [isCrashed]);
+  }, [currentGameId, isRunning, isCrashed]);
 
+  // Add fake members gradually during countdown (before match starts)
+  // Members join one by one like real users joining
   useEffect(() => {
-    // Connect to Socket.IO server with explicit options
-    // All WebSocket events are broadcast to ALL connected clients simultaneously
-    // This ensures perfect synchronization for all users across all browsers
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      timeout: 20000,
-      forceNew: false
-    });
-    socketRef.current = socket;
+    if (!showCountdown) {
+      // Clear interval when countdown ends
+      if (fakeMembersIntervalRef.current) {
+        clearTimeout(fakeMembersIntervalRef.current);
+        fakeMembersIntervalRef.current = null;
+      }
+      return;
+    }
 
-    // Only enable demo mode on failures if backend is NOT forced
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      if (!FORCE_BACKEND) setDemoMode(true);
-    });
-    socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-      if (!FORCE_BACKEND) setDemoMode(true);
-    });
-    socket.on('connect', () => {
-      console.log('Socket connected successfully');
-      setDemoMode(false);
-    });
+    // Reset counter when countdown starts
+    fakeMembersAddedRef.current = 0;
+    const targetCount = Math.floor(Math.random() * 4) + 12; // Minimum 12, up to 15 members
 
-    // Listen for new round events - synchronized for all users via WebSocket
-    // All users receive this event simultaneously from the backend
-    socket.on('new-round', (data) => {
-      console.log('New round:', data);
-      setCurrentGameId(data.gameId);
-      currentGameIdRef.current = data.gameId;
-      setIsWaitingForGame(true);
+    const addFakeMembers = () => {
+      // Stop if countdown ended
+      if (!showCountdown) {
+        return;
+      }
+
+      // Calculate how many members still need to be added
+      const remaining = targetCount - fakeMembersAddedRef.current;
+
+      // If we've reached minimum 12, we can stop (but can add more up to targetCount)
+      if (remaining <= 0) {
+        return;
+      }
+
+      // Add 2-5 members at a time (random batch size)
+      const batchSize = Math.min(
+        Math.floor(Math.random() * 4) + 2, // 2-5 members
+        remaining // Don't exceed remaining count
+      );
+
+      const newMembers = [];
+      for (let i = 0; i < batchSize; i++) {
+        const newMember = generateFakeUser();
+        // All members added before game starts are "In Play" (no cash out yet)
+        // They will cash out randomly after game starts
+        newMember.cashOutMultiplier = null;
+        newMember.winnings = 0;
+        newMembers.push(newMember);
+      }
+
+      setFakeMembers(prev => {
+        // Add new members, remove duplicates by userId
+        const combined = [...prev, ...newMembers];
+        const unique = combined.filter((member, index, self) =>
+          index === self.findIndex(m => m.userId === member.userId)
+        );
+        return unique;
+      });
+
+      fakeMembersAddedRef.current += batchSize;
+
+      // Schedule next addition (0.3-1.5 seconds delay for faster batch joining)
+      if (showCountdown && fakeMembersAddedRef.current < targetCount) {
+        const delay = Math.floor(Math.random() * 1200) + 300; // 0.3-1.5 seconds
+        fakeMembersIntervalRef.current = setTimeout(addFakeMembers, delay);
+      }
+    };
+
+    // Start adding fake members immediately when countdown starts
+    const initialDelay = Math.floor(Math.random() * 800) + 200; // 0.2-1 second
+    fakeMembersIntervalRef.current = setTimeout(addFakeMembers, initialDelay);
+
+    return () => {
+      if (fakeMembersIntervalRef.current) {
+        clearTimeout(fakeMembersIntervalRef.current);
+        fakeMembersIntervalRef.current = null;
+      }
+    };
+  }, [showCountdown]); // Run when countdown starts
+
+  // Frontend game loop - generates random multipliers and controls game flow
+  useEffect(() => {
+    const startNewRound = () => {
+      // Clear any existing intervals
+      if (gameIntervalRef.current) {
+        clearTimeout(gameIntervalRef.current);
+        gameIntervalRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+
+      // Reset game state
       setIsRunning(false);
       setIsCrashed(false);
+      setIsWaitingForGame(true);
       setShowCountdown(true);
-      // Calculate countdown end based on server timestamp for synchronization
-      // All users use the same server timestamp to ensure synchronized countdown
-      const serverTs = data.timestamp ? new Date(data.timestamp).getTime() : Date.now();
-      const seconds = Number(data.countdown || 10);
-      countdownEndTsRef.current = serverTs + seconds * 1000;
-      lastCountdownDisplayRef.current = seconds;
-      // Immediately compute first display value
-      const remainingNow = Math.max(0, Math.floor((countdownEndTsRef.current - Date.now()) / 1000));
-      const initialDisplay = Math.min(seconds, remainingNow);
-      lastCountdownDisplayRef.current = initialDisplay;
-      setCountdown(initialDisplay);
-      setLeaderboard([]); // Clear leaderboard on new round
-      setClaimedUserIds(new Set()); // Clear claimed highlights on new round
-      // Update leaderboard after a short delay to allow backend to process
-      setTimeout(() => updateLeaderboard(), 100);
-    });
+      setCountdown(5);
+      setSmoothCountdown(5);
+      setMultiplier(1.0);
+      setDisplayMultiplier(1.0);
+      displayMultiplierRef.current = 1.0;
+      fromMultiplierRef.current = 1.0;
+      toMultiplierRef.current = 1.0;
+      lastTargetRef.current = 1.0;
+      currentMultiplierRef.current = 1.0;
 
-    // Listen for game start - synchronized for all users via WebSocket
-    // All users receive this event simultaneously from the backend
-    socket.on('game-start', (data) => {
-      console.log('Game started:', data);
-      // Only reset if this is for the current game
-      // All users will start the game at the same time
-      if (data.gameId === currentGameIdRef.current) {
-        setIsWaitingForGame(false);
-        setIsRunning(true);
-        setIsCrashed(false);
-        // Update refs synchronously to avoid race conditions with multiplier updates
-        isRunningRef.current = true;
-        isCrashedRef.current = false;
-        setShowCountdown(false);
-        countdownEndTsRef.current = null;
-        lastCountdownDisplayRef.current = null;
-        // Reset multiplier state only at game start
-        setMultiplier(1.0);
-        setDisplayMultiplier(1.0);
-        displayMultiplierRef.current = 1.0; // Reset ref
-        // Reset interpolation state
-        fromMultiplierRef.current = 1.0;
-        toMultiplierRef.current = 1.0;
-        lastTargetRef.current = 1.0;
-        lastMultiplierHandleTsRef.current = 0; // Reset throttle timer
-        animStartRef.current = null;
-        // Cancel any existing animation frame
-        if (rafRef.current) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-        }
-        // Update leaderboard when game starts
-        updateLeaderboard();
-      }
-    });
+      // Generate random crash point between 1.1x and 10.0x
+      crashPointRef.current = parseFloat((1.1 + Math.random() * 8.9).toFixed(2));
+      console.log(`🎲 New round starting - crash point: ${crashPointRef.current}x`);
 
-    // Listen for multiplier updates - synchronized for all users via WebSocket
-    // All users receive the same multiplier values at the same time from the backend
-    // Frontend interpolates smoothly between backend updates for smooth animation
-    socket.on('multiplier-update', (data) => {
-      // Log raw WebSocket data received from backend
-      console.log('📡 WebSocket multiplier-update received from backend:', {
-        gameId: data.gameId,
-        multiplier: data.multiplier,
-        timestamp: data.timestamp,
-        rawData: data
-      });
+      // Reset fake members for new round - they'll be added during countdown
+      setFakeMembers([]);
+
+      // Countdown phase with smooth animation
+      let countdownValue = 5;
+      const countdownStartTime = Date.now();
+      const countdownDuration = 5000; // 5 seconds
       
-      // All users process the same multiplier value simultaneously
-      // Process multiplier updates if game is running and gameId matches
-      if (data.gameId === currentGameIdRef.current && isRunningRef.current && !isCrashedRef.current) {
-        // Parse multiplier as float (even if backend sends it as integer 1, parse as 1.0)
-        const backendValue = parseFloat(data.multiplier) || 1.0;
+      // Smooth animation using requestAnimationFrame
+      const animateCountdown = () => {
+        const elapsed = Date.now() - countdownStartTime;
+        const remaining = Math.max(0, countdownDuration - elapsed);
+        const smoothValue = remaining / 1000; // Convert to seconds
         
-        // Always update raw multiplier value
-        setMultiplier(backendValue);
+        setSmoothCountdown(smoothValue);
         
-        // Only process if value increased (to avoid resetting to lower values)
-        if (backendValue >= lastTargetRef.current) {
-          console.log(`📈 Multiplier update: ${lastTargetRef.current}x → ${backendValue}x`);
-          lastTargetRef.current = backendValue;
-          
-          // Cancel any existing animation before starting new one
-          // This ensures consistent behavior across all browsers
-          if (rafRef.current) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-          }
-          
-          // Start smooth interpolation from current displayMultiplier to new backend value
-          // Use the ref value (not the state, which might be stale in closure)
-          const now = performance.now();
-          fromMultiplierRef.current = displayMultiplierRef.current; // Start from current display value (not stale)
-          toMultiplierRef.current = backendValue;
-          animStartRef.current = now;
-          
-          // Interpolation duration: match backend update interval (100ms) for smooth animation
-          // All browsers will interpolate over the same duration for consistent animation
-          const durationMs = 100; // Smooth interpolation between backend updates
-          
-          const animate = (t) => {
-            // Check game state using refs (works consistently across browsers)
-            if (!isRunningRef.current || isCrashedRef.current) {
-              rafRef.current = null;
-              return;
-            }
-            
-            const start = animStartRef.current ?? t;
-            const elapsed = Math.max(0, t - start);
-            const progress = Math.min(1, elapsed / durationMs);
-            
-            // Smooth easing function (smoothstep) - works consistently across all browsers
-            const eased = progress * progress * (3 - 2 * progress);
-            const from = fromMultiplierRef.current;
-            const to = toMultiplierRef.current;
-            const value = from + (to - from) * eased;
-            
-            // Update display multiplier (all browsers will show the same interpolated value)
-            const newValue = parseFloat(value.toFixed(2));
-            setDisplayMultiplier(newValue);
-            displayMultiplierRef.current = newValue; // Update ref to track current value
-            
-            // Continue animation if not complete
-            if (progress < 1) {
-              rafRef.current = requestAnimationFrame(animate);
-            } else {
-              // Reached target, set exactly (ensures all browsers end at the same value)
-              const finalValue = parseFloat(to.toFixed(2));
-              setDisplayMultiplier(finalValue);
-              displayMultiplierRef.current = finalValue; // Update ref
-              rafRef.current = null;
-            }
-          };
-          
-          // Start animation immediately
-          rafRef.current = requestAnimationFrame(animate);
+        // Update display countdown (integer)
+        const displayValue = Math.ceil(smoothValue);
+        if (displayValue !== countdownValue) {
+          countdownValue = displayValue;
+          setCountdown(countdownValue);
+        }
+        
+        if (remaining > 0) {
+          requestAnimationFrame(animateCountdown);
         } else {
-          // Value decreased or stayed same, just set it directly (shouldn't happen during game)
-          const directValue = parseFloat(backendValue.toFixed(2));
-          setDisplayMultiplier(directValue);
-          displayMultiplierRef.current = directValue; // Update ref
-          toMultiplierRef.current = backendValue;
-        }
-      } else {
-        console.log('⚠️ Ignored multiplier update - gameId mismatch or game not running:', {
-          receivedGameId: data.gameId,
-          currentGameId: currentGameIdRef.current,
-          isRunning: isRunningRef.current,
-          isCrashed: isCrashedRef.current,
-          multiplier: data.multiplier
-        });
-      }
-    });
+          // Countdown finished
+          setSmoothCountdown(0);
+          setCountdown(0);
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          // Start game
+          setIsWaitingForGame(false);
+          setIsRunning(true);
+          setIsCrashed(false);
+          setShowCountdown(false);
+          isRunningRef.current = true;
+          isCrashedRef.current = false;
+          lastUpdateTimeRef.current = performance.now();
+          currentMultiplierRef.current = 1.0;
 
-    // Listen for game crash - synchronized for all users via WebSocket
-    // All users receive this event simultaneously from the backend
-    socket.on('game-crashed', (data) => {
-      // Log crash event from backend
-      console.log('💥 WebSocket game-crashed received from backend:', {
-        gameId: data.gameId,
-        multiplier: data.multiplier,
-        timestamp: data.timestamp,
-        rawData: data
-      });
+          // Start game loop
+          startGameLoop();
+        }
+      };
       
-      setIsRunning(false);
-      setIsCrashed(true);
-      // Update refs synchronously to avoid race conditions
-      isRunningRef.current = false;
-      isCrashedRef.current = true;
-      // Use exact crash multiplier value from WebSocket (no interpolation)
-      const crashMultiplier = Number(data.multiplier) || 1.0;
-      const formattedCrashValue = parseFloat(crashMultiplier.toFixed(2));
+      // Start smooth animation
+      requestAnimationFrame(animateCountdown);
       
-      console.log(`🛑 Final crash multiplier from backend: ${formattedCrashValue}x (raw: ${crashMultiplier})`);
-      console.log(`📊 Setting crash multiplier state to: ${formattedCrashValue}x`);
-      
-      setMultiplier(formattedCrashValue);
-      setDisplayMultiplier(formattedCrashValue);
-      displayMultiplierRef.current = formattedCrashValue; // Update ref
-      // Cancel any existing animation
+      // Also update display countdown every second for text
+      countdownIntervalRef.current = setInterval(() => {
+        // This is handled by animateCountdown now, but keeping for safety
+      }, 1000);
+    };
+
+    const startGameLoop = () => {
+      const updateInterval = 50; // Update every 50ms for smooth animation
+
+      // Start cashing out fake members randomly during the game
+      const startCashOuts = () => {
+        cashedOutCountRef.current = 0; // Reset counter when game starts
+
+        const cashOutMembers = () => {
+          if (!isRunningRef.current || isCrashedRef.current) {
+            return;
+          }
+
+          setFakeMembers(prev => {
+            // Get members still in play
+            const inPlayMembers = prev.filter(m => !m.cashOutMultiplier);
+
+            if (inPlayMembers.length === 0) return prev;
+
+            // Calculate how many more need to cash out to reach minimum 4
+            const remainingToReachMin = Math.max(0, 4 - cashedOutCountRef.current);
+
+            // Determine batch size: ensure we reach at least 4, then random 1-3
+            let membersToCashOut;
+            if (remainingToReachMin > 0) {
+              // Need to cash out more to reach minimum 4
+              membersToCashOut = Math.min(
+                remainingToReachMin + Math.floor(Math.random() * 2), // Add 0-1 extra
+                inPlayMembers.length
+              );
+            } else {
+              // Already have 4+, can cash out 1-3 randomly
+              membersToCashOut = Math.min(
+                Math.floor(Math.random() * 3) + 1, // 1-3 members randomly
+                inPlayMembers.length
+              );
+            }
+
+            // Shuffle and take random members
+            const shuffled = [...inPlayMembers].sort(() => Math.random() - 0.5);
+            const selected = shuffled.slice(0, membersToCashOut);
+            const selectedIds = new Set(selected.map(m => m.userId));
+
+            cashedOutCountRef.current += membersToCashOut; // Update counter
+
+            return prev.map(member => {
+              // If this member is selected to cash out
+              if (selectedIds.has(member.userId)) {
+                const currentMultiplier = currentMultiplierRef.current;
+                // Cash out at current multiplier or slightly below (more realistic)
+                const cashOutMultiplier = parseFloat(
+                  Math.max(1.05, Math.min(currentMultiplier, currentMultiplier - 0.05 + Math.random() * 0.15)).toFixed(2)
+                );
+                return {
+                  ...member,
+                  cashOutMultiplier: cashOutMultiplier,
+                  winnings: parseFloat((member.betAmount * cashOutMultiplier).toFixed(2))
+                };
+              }
+              return member;
+            });
+          });
+
+          // Schedule next cash out check (0.5-2 seconds) - random timing
+          if (isRunningRef.current && !isCrashedRef.current) {
+            const delay = Math.floor(Math.random() * 1500) + 500; // 0.5-2 seconds
+            cashOutIntervalRef.current = setTimeout(cashOutMembers, delay);
+          }
+        };
+
+        // Start first cash out check after 0.3-1 second (quick start after game begins)
+        const initialDelay = Math.floor(Math.random() * 700) + 300;
+        cashOutIntervalRef.current = setTimeout(cashOutMembers, initialDelay);
+      };
+
+      startCashOuts();
+
+      const gameLoop = () => {
+        if (!isRunningRef.current || isCrashedRef.current) {
+          return;
+        }
+
+        const now = performance.now();
+        const deltaTime = now - (lastUpdateTimeRef.current || now);
+        lastUpdateTimeRef.current = now;
+
+        // Increment multiplier smoothly
+        // Speed increases slightly as multiplier increases
+        const speed = 0.02 + (currentMultiplierRef.current * 0.01);
+        currentMultiplierRef.current += speed * (deltaTime / 16); // Normalize to 60fps
+
+        // Check if we've reached crash point
+        if (currentMultiplierRef.current >= crashPointRef.current) {
+          // Crash!
+          const finalMultiplier = crashPointRef.current;
+          setIsRunning(false);
+          setIsCrashed(true);
+          isRunningRef.current = false;
+          isCrashedRef.current = true;
+
+          setMultiplier(finalMultiplier);
+          setDisplayMultiplier(finalMultiplier);
+          displayMultiplierRef.current = finalMultiplier;
+          lastTargetRef.current = finalMultiplier;
+
+          // Clear game interval
+          if (gameIntervalRef.current) {
+            clearTimeout(gameIntervalRef.current);
+            gameIntervalRef.current = null;
+          }
+
+          // Clear cash out interval
+          if (cashOutIntervalRef.current) {
+            clearTimeout(cashOutIntervalRef.current);
+            cashOutIntervalRef.current = null;
+          }
+
+          // Update game history
+          setGameHistory(prev => [finalMultiplier, ...prev.slice(0, 9)]);
+
+          // Set roundOver after delay
+          setTimeout(() => {
+            setRoundOver(true);
+          }, 2000);
+
+          // Start next round after crash animation
+          setTimeout(() => {
+            setRoundOver(false);
+            startNewRound();
+          }, 5000);
+
+          return;
+        }
+
+        // Update multiplier state
+        const roundedMultiplier = parseFloat(currentMultiplierRef.current.toFixed(2));
+        setMultiplier(roundedMultiplier);
+        setDisplayMultiplier(roundedMultiplier);
+        displayMultiplierRef.current = roundedMultiplier;
+        lastTargetRef.current = roundedMultiplier;
+
+        // Continue game loop
+        gameIntervalRef.current = setTimeout(gameLoop, updateInterval);
+      };
+
+      gameLoop();
+    };
+
+    // Start first round
+    startNewRound();
+
+    // Cleanup
+    return () => {
+      if (gameIntervalRef.current) {
+        clearTimeout(gameIntervalRef.current);
+        gameIntervalRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      if (cashOutIntervalRef.current) {
+        clearTimeout(cashOutIntervalRef.current);
+        cashOutIntervalRef.current = null;
+      }
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
-      lastTargetRef.current = crashMultiplier;
-      toMultiplierRef.current = crashMultiplier;
-      setGameHistory(prev => [data.multiplier, ...prev.slice(0, 9)]);
-      
-      // Update leaderboard after crash to show final results
-      setTimeout(() => updateLeaderboard(), 500);
-      
-      // The crash position will be set by the animation useEffect based on the multiplier
-      // No need to set it manually here
-      
-      // Set roundOver after a delay
-      setTimeout(() => {
-        setRoundOver(true);
-      }, 2000);
-    });
-
-    // Listen for bet placed events - update leaderboard instantly
-    socket.on('bet-placed', (data) => {
-      console.log('Bet placed by another user:', data);
-      if (data.gameId === currentGameIdRef.current) {
-        // Update leaderboard immediately when a bet is placed
-        updateLeaderboard();
-      }
-    });
-
-    // Listen for winnings claimed events - update leaderboard and highlight row
-    socket.on('winnings-claimed', (data) => {
-      console.log('Winnings claimed by user:', data);
-      if (data.gameId === currentGameIdRef.current) {
-        const userId = data.participant.user._id || data.participant.user;
-        // Add userId to claimed set for highlighting
-        setClaimedUserIds(prev => {
-          const newSet = new Set(prev);
-          newSet.add(userId.toString());
-          return newSet;
-        });
-        
-        // Update leaderboard immediately when winnings are claimed
-        // Highlight will be removed automatically when data is reloaded in updateLeaderboard
-        updateLeaderboard();
-      }
-    });
-
-    // Cleanup on unmount
-    return () => {
-      socket.disconnect();
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-    // SOCKET_URL and FORCE_BACKEND are constants that don't change
-    // updateLeaderboard is a stable useCallback function
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Run once on mount
 
-  // Demo mode loop: simulate countdown, game run, multiplier updates, and crash
-  useEffect(() => {
-    if (!demoMode || demoInitializedRef.current) return;
-    demoInitializedRef.current = true;
-
-    let activeIntervals = [];
-    let activeTimeouts = [];
-
-    const runDemoRound = () => {
-      // Countdown
-      setIsRunning(false);
-      setIsCrashed(false);
-      setShowCountdown(true);
-      setCountdown(7);
-
-      const countdownInterval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            // Start game
-            setShowCountdown(false);
-            setIsRunning(true);
-            setIsCrashed(false);
-            setMultiplier(1.0);
-            fromMultiplierRef.current = 1.0;
-            toMultiplierRef.current = 1.0;
-            lastTargetRef.current = 1.0;
-            animStartRef.current = null;
-
-            // Choose a crash point between 1.6x and 3.0x (slower run)
-            const crashAt = parseFloat((1.6 + Math.random() * 1.4).toFixed(2));
-            let current = 1.0;
-
-            // Smoothly step multiplier upwards (demo mode - use multiplier directly)
-            const stepInterval = setInterval(() => {
-              const step = 0.03 + Math.random() * 0.07; // smaller steps
-              current = Math.min(current + step, crashAt);
-              const nextValue = parseFloat(current.toFixed(2));
-              setMultiplier(nextValue);
-
-              if (current >= crashAt) {
-                clearInterval(stepInterval);
-                // Simulate crash
-                const crashTimeout = setTimeout(() => {
-                  setIsRunning(false);
-                  setIsCrashed(true);
-                  setMultiplier(crashAt);
-                  if (rafRef.current) cancelAnimationFrame(rafRef.current);
-                  lastTargetRef.current = Number(crashAt) || 1.0;
-                  setGameHistory((prev) => [crashAt, ...prev.slice(0, 9)]);
-                  const roundOverTimeout = setTimeout(() => setRoundOver(true), 2000);
-                  activeTimeouts.push(roundOverTimeout);
-                  // Start next round after a short pause
-                  const nextRoundTimeout = setTimeout(() => {
-                    setRoundOver(false);
-                    runDemoRound();
-                  }, 3000);
-                  activeTimeouts.push(nextRoundTimeout);
-                }, 400);
-                activeTimeouts.push(crashTimeout);
-              }
-            }, 250); // slower tick
-            activeIntervals.push(stepInterval);
-
-            return 5; // reset value for next round
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      activeIntervals.push(countdownInterval);
-    };
-
-    runDemoRound();
-
-    return () => {
-      activeIntervals.forEach(clearInterval);
-      activeTimeouts.forEach(clearTimeout);
-      demoInitializedRef.current = false;
-    };
-  }, [demoMode]);
 
   // Fetch crash history on component mount
   useEffect(() => {
@@ -573,7 +600,7 @@ const CrashGame = () => {
         console.error('Failed to fetch crash history:', error);
       }
     };
-    
+
     fetchHistory();
   }, []);
 
@@ -605,10 +632,10 @@ const CrashGame = () => {
     const graphStartX = 40;  // Y-axis position
     const graphEndY = 280;   // X-axis position (bottom of graph)
     // Set initial position immediately without animation
-    rocketControls.set({ x: graphStartX, y: graphEndY, opacity: 1 });
+    rocketControls.set({ x: graphStartX, y: graphEndY, opacity: 1, rotate: 0 });
   }, [rocketControls]);
 
-  // OLD GAME LOGIC REMOVED - Backend worker now controls all game logic via Socket.IO
+  // Frontend-only game logic - generates random multipliers locally
 
   const placeBet = async () => {
     if (balance >= betAmount && user) {
@@ -616,24 +643,24 @@ const CrashGame = () => {
       if (currentGameId) {
         try {
           const result = await placeBetAPI(currentGameId, user._id || user.id, betAmount);
-          
+
           // Update local balance with server response
           if (result.success && result.data && result.data.user) {
             setBalance(result.data.user.balance);
           } else {
             setBalance(prev => prev - betAmount);
           }
-          
+
           setBets(prev => prev + 1);
           setHasPlacedBet(true);
           setUserBetInCurrentGame({ betAmount, gameId: currentGameId });
           console.log(`User ${user.username || user.email || user.phone} placed bet ${betAmount} in game ${currentGameId}`);
-          
+
           // Update leaderboard after placing bet
           setTimeout(() => {
             updateLeaderboard();
           }, 500);
-          
+
         } catch (error) {
           console.error('Failed to place bet:', error);
           alert(error.message || 'Failed to place bet');
@@ -641,8 +668,8 @@ const CrashGame = () => {
         }
       } else {
         // No game exists yet, add to pending participants
-      setBalance(prev => prev - betAmount);
-      setBets(prev => prev + 1);
+        setBalance(prev => prev - betAmount);
+        setBets(prev => prev + 1);
         setHasPlacedBet(true);
         setUserBetInCurrentGame({ betAmount, gameId: null });
         // setPendingParticipants(prev => [...prev, { // Unused - removed for build
@@ -672,17 +699,17 @@ const CrashGame = () => {
 
     try {
       const result = await claimWinnings(currentGameId, user._id || user.id, multiplier);
-      
+
       if (result.success) {
         // Update balance
         if (result.data && result.data.user) {
           setBalance(result.data.user.balance);
         }
-        
+
         alert(`Claimed ${result.data.bet.winnings.toFixed(2)} INR at ${multiplier.toFixed(2)}x`);
         setHasPlacedBet(false);
         setUserBetInCurrentGame(null);
-        
+
         // Highlight this user's row
         const userId = user._id || user.id;
         setClaimedUserIds(prev => {
@@ -690,8 +717,8 @@ const CrashGame = () => {
           newSet.add(userId.toString());
           return newSet;
         });
-        
-        // Update leaderboard immediately (Socket.IO event will also trigger this, but this ensures immediate update)
+
+        // Update leaderboard immediately
         // Highlight will be removed automatically when data is reloaded in updateLeaderboard
         setTimeout(() => {
           updateLeaderboard();
@@ -703,45 +730,12 @@ const CrashGame = () => {
     }
   };
 
-  // Countdown display - synchronized for all users using server timestamp
-  // Works consistently across all browsers by using server time instead of client time
-  useEffect(() => {
-    let tick;
-    const update = () => {
-      if (!showCountdown || !countdownEndTsRef.current) return;
-      
-      // Calculate remaining time using server timestamp (synchronized for all users)
-      // All browsers calculate from the same server timestamp, ensuring synchronization
-      const now = Date.now();
-      const rawRemaining = Math.max(0, Math.ceil((countdownEndTsRef.current - now) / 1000));
-      
-      // Ensure monotonic countdown (never increases) to prevent jitter
-      const lastShown = lastCountdownDisplayRef.current == null ? rawRemaining : lastCountdownDisplayRef.current;
-      const clamped = Math.max(0, Math.min(lastShown, rawRemaining));
-      
-      lastCountdownDisplayRef.current = clamped;
-      setCountdown(clamped);
-      
-      if (clamped === 0) {
-        // Countdown finished - wait for backend 'game-start' event
-        return;
-      }
-    };
-    
-    if (showCountdown) {
-      update(); // Initial update
-      // Update every 100ms for smooth countdown (works consistently across browsers)
-      tick = setInterval(update, 100);
-    }
-    
-    return () => {
-      if (tick) clearInterval(tick);
-    };
-  }, [showCountdown]);
+  // Countdown display - frontend-only, controlled by game loop
+  // The countdown is now managed directly by the frontend game loop
 
-  // Rocket animation - synchronized for all users and browsers
-  // Uses displayMultiplier which is synchronized across all browsers via WebSocket
-  // Works consistently across all browsers using framer-motion
+  // Rocket animation - frontend-only
+  // Uses displayMultiplier which is generated locally with random numbers
+  // Works consistently using framer-motion
   useEffect(() => {
     // Graph boundaries (consistent across all browsers)
     const graphStartX = 40;  // Y-axis position
@@ -751,20 +745,20 @@ const CrashGame = () => {
     const axisX = graphStartX;
     const axisY = graphEndY;
     // const graphHeight = graphEndY - graphStartY; // Unused - removed for build
-    
+
     // If not running (cooldown period) or crashed, show rocket at starting position (bottom)
     // All browsers will show the same starting position
     if (!isRunning || isCrashed) {
       // Always reset to bottom position when game is not running
-      rocketControls.set({ x: axisX, y: axisY, opacity: 1 });
+      rocketControls.set({ x: axisX, y: axisY, opacity: 1, rotate: 0 });
       return;
     }
-    
+
     // Use displayMultiplier for smooth rocket animation (interpolated between backend updates)
     // All browsers use the same displayMultiplier value, ensuring synchronized animation
     const currentMultiplier = displayMultiplier;
     const fixedMax = 10; // Fixed scale: 1.0 to 10
-    
+
     // Calculate rocket Y position based on new scale: 1.0x at bottom, 2.0x closer, then evenly spaced
     // This matches the Y-axis labels: 1.0x, 2.0x, 4x, 6x, 8x, 10x
     const getRocketYPosition = (multiplier) => {
@@ -783,38 +777,39 @@ const CrashGame = () => {
       const progress = Math.min(remainingMultiplier / maxRemainingMultiplier, 1.0);
       return twoXPosition - (progress * remainingHeight); // From 250 to 20
     };
-    
+
     // Calculate rocket position
     const maxXDistance = graphEndX - graphStartX - 20;
     // X position: linear progression based on multiplier
     const xProgress = Math.min((currentMultiplier - 1.0) / (fixedMax - 1.0), 1.0);
     const rocketX = axisX + (xProgress * maxXDistance * 0.75);
-    
+
     // Y position: use new scale with less spacing at bottom
     let finalRocketY = getRocketYPosition(currentMultiplier);
-    
+
     // Keep rocket at starting position if multiplier is less than 1.0
     if (currentMultiplier < 1.0) {
       finalRocketY = axisY;
     }
-    
+
     // Constrain to graph bounds (consistent across all browsers)
     const minY = graphStartY + 10;
     const maxY = graphEndY - 10;
     finalRocketY = Math.max(minY, Math.min(maxY, finalRocketY));
-    
+
     // Update rocket trail (all browsers will show the same trail)
     setRocketTrail(prev => [...prev.slice(-20), { x: rocketX, y: finalRocketY, time: 0 }]);
-    
+
     // Animate rocket smoothly using framer-motion (works consistently across all browsers)
-    rocketControls.start({ 
-      x: rocketX, 
-      y: finalRocketY, 
+    rocketControls.start({
+      x: rocketX,
+      y: finalRocketY,
       opacity: 1,
-      transition: { 
+      rotate: 40, // Rotate 40 degrees clockwise when game starts
+      transition: {
         duration: 0.05, // Very short duration for smooth continuous movement
         ease: "linear" // Linear easing for consistent animation across browsers
-      } 
+      }
     });
   }, [displayMultiplier, isRunning, isCrashed, rocketControls]);
 
@@ -828,10 +823,10 @@ const CrashGame = () => {
       const axisX = graphStartX;
       const axisY = graphEndY;
       // const graphHeight = graphEndY - graphStartY; // Unused - removed for build
-      
+
       const fixedMax = 10; // Fixed scale: 1.0 to 10
       const finalMultiplier = multiplier;
-      
+
       // Calculate crash Y position using new scale: 1.0x at bottom, 2.0x closer, then evenly spaced
       const getCrashYPosition = (multiplier) => {
         if (multiplier <= 1.0) return axisY; // Bottom at 1.0x (280)
@@ -849,31 +844,31 @@ const CrashGame = () => {
         const progress = Math.min(remainingMultiplier / maxRemainingMultiplier, 1.0);
         return twoXPosition - (progress * remainingHeight); // From 250 to 20
       };
-      
+
       // Calculate crash position
       const maxXDistance = graphEndX - graphStartX - 20;
       // X position: linear progression based on multiplier
       const xProgress = Math.min((finalMultiplier - 1.0) / (fixedMax - 1.0), 1.0);
       const crashX = axisX + (xProgress * maxXDistance * 0.75);
-      
+
       // Y position: use new scale with less spacing at bottom
       let crashY = getCrashYPosition(finalMultiplier);
-      
+
       if (finalMultiplier < 1.0) {
         crashY = axisY;
       }
-      
+
       const minY = graphStartY + 10;
       const maxY = graphEndY - 10;
       crashY = Math.max(minY, Math.min(maxY, crashY));
-      
+
       setCrashPosition({ x: crashX, y: crashY });
-      
+
       // Move rocket to crash position and hide it
-      rocketControls.start({ 
-        x: crashX, 
-        y: crashY, 
-        opacity: 0, 
+      rocketControls.start({
+        x: crashX,
+        y: crashY,
+        opacity: 0,
         rotate: 30,
         scale: 0.5,
         transition: {
@@ -881,7 +876,7 @@ const CrashGame = () => {
           ease: "easeOut"
         }
       });
-      
+
       // Show crash effect for 3 seconds
       setShowCrashEffect(true);
       setTimeout(() => {
@@ -889,10 +884,10 @@ const CrashGame = () => {
         // Reset rocket to starting position after crash animation
         const graphStartX = 40;
         const graphEndY = 280;
-        rocketControls.set({ 
-          x: graphStartX, 
-          y: graphEndY, 
-          opacity: 1, 
+        rocketControls.set({
+          x: graphStartX,
+          y: graphEndY,
+          opacity: 1,
           rotate: 0,
           scale: 1
         });
@@ -900,20 +895,8 @@ const CrashGame = () => {
     }
   }, [isCrashed, multiplier, rocketControls]);
 
-  // Leaderboard is now updated via Socket.IO events only:
-  // - new-round: clears and updates after round starts
-  // - game-start: updates when game starts
-  // - bet-placed: updates instantly when someone places a bet
-  // - game-crashed: updates after crash to show final results
-  // No polling needed - real-time updates via Socket.IO!
-
-  // FRONTEND GAME LOOP DISABLED - Backend worker now controls the game
-  // All game logic is now handled by backend worker via Socket.IO events
-  
-  // Keep refs in sync with state (kept for compatibility)
-  useEffect(() => {
-    // State is now controlled by Socket.IO events from backend
-  }, [isRunning, roundOver, showCountdown, isWaitingForGame]);
+  // Frontend-only game loop - generates random multipliers and controls game flow
+  // All game logic is handled locally in the frontend
 
   // Reset roundOver after delay
   useEffect(() => {
@@ -930,11 +913,21 @@ const CrashGame = () => {
       {/* Header */}
       <div className="header">
         <div className="header-left">
-          <div className="menu-icon">☰</div>
+          <div 
+            className="menu-icon" 
+            ref={menuIconRef}
+            onClick={() => {
+              if (menuIconRef.current) {
+                const rect = menuIconRef.current.getBoundingClientRect();
+                setMenuIconPosition({ top: rect.bottom, left: rect.left });
+              }
+              setShowSettingsModal(true);
+            }}
+          >☰</div>
           {/* <div className="volume-icon">🔊</div> */}
         </div>
         <div className="game-title">SPACE X1</div>
-       
+
         <div className="header-right">
           {user ? (
             <div className="user-info">
@@ -952,19 +945,7 @@ const CrashGame = () => {
           {/* <div className="refresh-icon">↻</div> */}
         </div>
       </div>
-      <div className="game-history">
-          {gameHistory.slice(0, 10).map((result, index) => {
-            const isLast = index === gameHistory.slice(0, 10).length - 1;
-            return (
-              <span 
-                key={index} 
-                className={`history-item ${isLast ? 'last-item' : ''}`}
-              >
-                {result.toFixed(2)}x
-              </span>
-            );
-          })}
-        </div>
+    
       <div className="main-content">
         {/* Left Sidebar - Leaderboard */}
         <div className="sidebar">
@@ -974,42 +955,85 @@ const CrashGame = () => {
           <div className="leaderboard-table">
             <div className="table-header">
               <div className="header-cell">Player</div>
-              <div className="header-cell">Bet (INR)</div>
+              <div className="header-cell">Bet {viewInFun ? '(FUN)' : '(INR)'}</div>
               <div className="header-cell">Multiplier</div>
-              <div className="header-cell">Win (INR)</div>
+              <div className="header-cell">Win {viewInFun ? '(FUN)' : '(INR)'}</div>
             </div>
             <div className="table-body">
-            {(leaderboard.length ? leaderboard : DUMMY_LEADERBOARD).map((player, index) => {
-              const isClaimed = player.userId && claimedUserIds.has(player.userId.toString());
-              return (
-                <div key={index} className={`table-row ${isClaimed ? 'claimed-highlight' : ''}`}>
-                  <div className="table-cell player-cell">{player.name}</div>
-                  <div className="table-cell">{player.betAmount ? player.betAmount.toFixed(2) : '0.00'}</div>
-                  <div className="table-cell multiplier-cell">
-                    {player.cashOutMultiplier ? `${player.cashOutMultiplier.toFixed(2)}x` : 'In Play'}
-                  </div>
-                  <div className="table-cell winnings-cell">
-                    {player.winnings ? player.winnings.toFixed(2) : '0.00'}
-                  </div>
-              </div>
-              );
-            })}
+              {(() => {
+                // Combine real leaderboard with fake members
+                // Real users take priority, then add fake members
+                const realUsers = leaderboard.filter(p => !p.isFake);
+                const allMembers = [...realUsers, ...fakeMembers];
+
+                // Sort by bet amount descending
+                const sortedMembers = [...allMembers].sort((a, b) => {
+                  if (a.betAmount && b.betAmount) {
+                    return b.betAmount - a.betAmount;
+                  }
+                  return 0;
+                });
+
+                return sortedMembers.map((player, index) => {
+                  const isClaimed = player.userId && claimedUserIds.has(player.userId.toString());
+                  const hasWinnings = player.winnings && player.winnings > 0;
+                  const hasCashedOut = player.cashOutMultiplier !== null && player.cashOutMultiplier !== undefined;
+                  const showDash = !player.cashOutMultiplier && player.winnings === 1.00;
+
+                  return (
+                    <div
+                      key={player.userId || index}
+                      className={`table-row ${isClaimed ? 'claimed-highlight' : ''} ${hasCashedOut ? 'cashed-out-row' : ''}`}
+                    >
+                      <div className="table-cell player-cell leaderboard-player-name">{player.name}</div>
+                      <div className="table-cell leaderboard-bet-amount">{player.betAmount ? player.betAmount.toFixed(2) : '0.00'}</div>
+                      <div className="table-cell multiplier-cell leaderboard-multiplier">
+                        {player.cashOutMultiplier
+                          ? `${player.cashOutMultiplier.toFixed(2)}x`
+                          : (showDash ? '-' : 'In Play')}
+                      </div>
+                    <div className={`table-cell winnings-cell ${hasWinnings ? 'leaderboard-winnings-box' : ''}`}>
+                      {hasWinnings ? (
+                        <span className="winnings-amount">
+                          {player.winnings.toFixed(2)} {viewInFun ? 'FUN' : 'INR'}
+                          {viewInFun && <span className="fun-icon-small">●</span>}
+                        </span>
+                      ) : (
+                        <span>{showDash ? `1.00 ${viewInFun ? 'FUN' : 'INR'}` : `0.00 ${viewInFun ? 'FUN' : 'INR'}`}</span>
+                      )}
+                    </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
 
         {/* Central Game Area */}
         <div className="game-area">
-          
+        <div className="game-history">
+        {gameHistory.slice(0, 10).map((result, index) => {
+          const isLast = index === gameHistory.slice(0, 10).length - 1;
+          return (
+            <span
+              key={index}
+              className={`history-item ${isLast ? 'last-item' : ''}`}
+            >
+              {result.toFixed(2)}x
+            </span>
+          );
+        })}
+      </div>
           <div className="graph-container">
             <svg className="graph" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
               {/* Grid Lines */}
               <defs>
                 <pattern id="grid" width="40" height="30" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 30" fill="none" stroke="#333" strokeWidth="0.3" opacity="0.2"/>
+                  <path d="M 40 0 L 0 0 0 30" fill="none" stroke="#333" strokeWidth="0.3" opacity="0.2" />
                 </pattern>
                 <pattern id="majorGrid" width="200" height="150" patternUnits="userSpaceOnUse">
-                  <path d="M 200 0 L 0 0 0 150" fill="none" stroke="#444" strokeWidth="0.5" opacity="0.4"/>
+                  <path d="M 200 0 L 0 0 0 150" fill="none" stroke="#444" strokeWidth="0.5" opacity="0.4" />
                 </pattern>
                 <radialGradient id="trailGradient" cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stopColor="#ff6b35" />
@@ -1021,23 +1045,23 @@ const CrashGame = () => {
                   <stop offset="100%" stopColor="#ff8888" />
                 </radialGradient>
               </defs>
-              
+
               {/* Grid Background */}
               <rect width="400" height="300" fill="url(#grid)" />
               <rect width="400" height="300" fill="url(#majorGrid)" />
-              
+
               {/* Main Axes */}
-              <line x1="40" y1="20" x2="40" y2="280" stroke="#666" strokeWidth="2" className="main-axis"/>
-              <line x1="40" y1="280" x2="380" y2="280" stroke="#666" strokeWidth="2" className="main-axis"/>
-              
-              
+              <line x1="40" y1="20" x2="40" y2="280" stroke="#666" strokeWidth="2" className="main-axis" />
+              <line x1="40" y1="280" x2="380" y2="280" stroke="#666" strokeWidth="2" className="main-axis" />
+
+
               {/* Y-axis grid lines - Fixed values: 1.0, 2.0, 4, 6, 8, 10 with less spacing at bottom */}
               {(() => {
                 // Custom positioning: 1.0x at bottom, 2.0x closer to 1.0x, then evenly spaced above
                 const values = [1.0, 2.0, 4, 6, 8, 10];
                 const graphStartY = 20;
                 const graphEndY = 280;
-                
+
                 // Calculate positions with less spacing between 1.0x and 2.0x
                 const getYPosition = (value) => {
                   if (value === 1.0) return graphEndY; // Bottom at 280
@@ -1052,37 +1076,37 @@ const CrashGame = () => {
                   // Calculate from 2.0x position (250) going upward to top (20)
                   return twoXPosition - (multiplierProgress * remainingHeight);
                 };
-                
+
                 return values.map((value) => {
                   const yPosition = getYPosition(value);
                   return (
-                    <line 
+                    <line
                       key={`y-grid-${value}`}
-                      x1="40" 
-                      y1={yPosition} 
-                      x2="380" 
-                      y2={yPosition} 
-                      stroke="#555" 
-                      strokeWidth="1" 
+                      x1="40"
+                      y1={yPosition}
+                      x2="380"
+                      y2={yPosition}
+                      stroke="#555"
+                      strokeWidth="1"
                       opacity="0.6"
                     />
                   );
                 });
               })()}
-              
+
               {/* X-axis grid lines and labels */}
-              <line x1="100" y1="20" x2="100" y2="280" stroke="#555" strokeWidth="1" opacity="0.6"/>
-              <line x1="160" y1="20" x2="160" y2="280" stroke="#555" strokeWidth="1" opacity="0.6"/>
-              <line x1="220" y1="20" x2="220" y2="280" stroke="#555" strokeWidth="1" opacity="0.6"/>
-              <line x1="280" y1="20" x2="280" y2="280" stroke="#555" strokeWidth="1" opacity="0.6"/>
-              <line x1="340" y1="20" x2="340" y2="280" stroke="#555" strokeWidth="1" opacity="0.6"/>
-              
+              <line x1="100" y1="20" x2="100" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
+              <line x1="160" y1="20" x2="160" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
+              <line x1="220" y1="20" x2="220" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
+              <line x1="280" y1="20" x2="280" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
+              <line x1="340" y1="20" x2="340" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
+
               {/* Y-axis labels (Multiplier) - Fixed values: 1.0, 2.0, 4, 6, 8, 10 with less spacing at bottom */}
               {(() => {
                 const values = [1.0, 2.0, 4, 6, 8, 10];
                 const graphStartY = 20;
                 const graphEndY = 280;
-                
+
                 // Calculate positions with less spacing between 1.0x and 2.0x
                 const getYPosition = (value) => {
                   if (value === 1.0) return graphEndY; // Bottom at 280
@@ -1097,14 +1121,14 @@ const CrashGame = () => {
                   // Calculate from 2.0x position (250) going upward to top (20)
                   return twoXPosition - (multiplierProgress * remainingHeight);
                 };
-                
+
                 return values.map((value) => {
                   const yPosition = getYPosition(value);
                   return (
-                    <text 
+                    <text
                       key={`y-label-${value}`}
-                      x="5" 
-                      y={yPosition + 4} 
+                      x="5"
+                      y={yPosition + 4}
                       className="axis-label"
                     >
                       {value % 1 === 0 ? `${value}x` : `${value.toFixed(1)}x`}
@@ -1112,7 +1136,7 @@ const CrashGame = () => {
                   );
                 });
               })()}
-              
+
               {/* X-axis labels (Time) */}
               <text x="35" y="295" className="axis-label">0s</text>
               <text x="95" y="295" className="axis-label">1s</text>
@@ -1120,11 +1144,11 @@ const CrashGame = () => {
               <text x="215" y="295" className="axis-label">3s</text>
               <text x="275" y="295" className="axis-label">4s</text>
               <text x="335" y="295" className="axis-label">5s</text>
-              
+
               {/* Axis titles */}
               <text x="200" y="15" className="axis-title" textAnchor="middle">MULTIPLIER</text>
               <text x="390" y="270" className="axis-title" textAnchor="end">TIME</text>
-              
+
               {/* Rocket Trail */}
               {rocketTrail.map((point, index) => (
                 <circle
@@ -1177,21 +1201,119 @@ const CrashGame = () => {
                   />
                 </g>
               )}
-              
+
               {/* Animated Rocket */}
               <motion.g
-                initial={{ x: 40, y: 280, opacity: 1 }}
+                initial={{ x: 40, y: 280, opacity: 1, rotate: 0 }}
                 animate={rocketControls}
                 className="rocket-graph"
               >
-                <image 
-                  href={rocketGif} 
-                  x="-15" 
-                  y="-15" 
-                  width="40" 
-                  height="40"
-                  style={{ filter: 'drop-shadow(0 0 5px rgba(255, 107, 53, 0.8))' }}
-                />
+                <defs>
+                  {/* Rocket body gradient */}
+                  <linearGradient id="rocketBodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                    <stop offset="50%" stopColor="#f5f5f5" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#e8e8e8" stopOpacity="1" />
+                  </linearGradient>
+                  {/* Fire gradient */}
+                  <radialGradient id="fireGradient" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#ffff00" stopOpacity="1" />
+                    <stop offset="50%" stopColor="#ffaa00" stopOpacity="0.9" />
+                    <stop offset="100%" stopColor="#ff6600" stopOpacity="0.7" />
+                  </radialGradient>
+                  {/* Window gradient */}
+                  <radialGradient id="windowGradient" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#87ceeb" stopOpacity="1" />
+                    <stop offset="70%" stopColor="#4a90e2" stopOpacity="0.9" />
+                    <stop offset="100%" stopColor="#2e5c8a" stopOpacity="0.8" />
+                  </radialGradient>
+                </defs>
+                <g transform="translate(0, 0)">
+                  {/* Enhanced Yellow Fire */}
+                  <g className="rocket-fire">
+                    {/* Outer fire glow - largest */}
+                    <ellipse cx="0" cy="14" rx="7" ry="10" fill="#ffd700" opacity="0.6">
+                      <animate attributeName="ry" values="10;12;10" dur="0.3s" repeatCount="indefinite" />
+                      <animate attributeName="rx" values="7;8;7" dur="0.35s" repeatCount="indefinite" />
+                    </ellipse>
+                    {/* Middle fire layer */}
+                    <ellipse cx="0" cy="14" rx="5.5" ry="8" fill="#ffaa00" opacity="0.8">
+                      <animate attributeName="ry" values="8;9.5;8" dur="0.25s" repeatCount="indefinite" />
+                    </ellipse>
+                    {/* Inner bright fire */}
+                    <ellipse cx="0" cy="14" rx="4" ry="6" fill="url(#fireGradient)" opacity="1">
+                      <animate attributeName="ry" values="6;7;6" dur="0.2s" repeatCount="indefinite" />
+                    </ellipse>
+                    {/* Core fire */}
+                    <ellipse cx="0" cy="14" rx="2.5" ry="4" fill="#ffff00" opacity="1">
+                      <animate attributeName="ry" values="4;5;4" dur="0.15s" repeatCount="indefinite" />
+                    </ellipse>
+                    {/* Fire particles - more dynamic */}
+                    <circle cx="-4" cy="16" r="1.8" fill="#ffd700" opacity="0.8">
+                      <animate attributeName="cy" values="16;18;16" dur="0.4s" repeatCount="indefinite" />
+                      <animate attributeName="cx" values="-4;-5;-4" dur="0.4s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="4" cy="17" r="1.8" fill="#ffd700" opacity="0.8">
+                      <animate attributeName="cy" values="17;19;17" dur="0.35s" repeatCount="indefinite" />
+                      <animate attributeName="cx" values="4;5;4" dur="0.35s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="-2" cy="18" r="1.2" fill="#ffaa00" opacity="0.7">
+                      <animate attributeName="cy" values="18;20;18" dur="0.45s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="2" cy="19" r="1.2" fill="#ffaa00" opacity="0.7">
+                      <animate attributeName="cy" values="19;21;19" dur="0.4s" repeatCount="indefinite" />
+                    </circle>
+                  </g>
+                  
+                  {/* Enhanced White Rocket Body */}
+                  <g className="rocket-body">
+                    {/* Main body with gradient */}
+                    <path d="M -7 -10 L -3.5 -13 L 3.5 -13 L 7 -10 L 5.5 6 L -5.5 6 Z" 
+                          fill="url(#rocketBodyGradient)" 
+                          stroke="#d0d0d0" 
+                          strokeWidth="0.8" />
+                    
+                    {/* Nose cone highlight */}
+                    <ellipse cx="0" cy="-11" rx="3.5" ry="2" fill="#ffffff" opacity="0.7" />
+                    
+                    {/* Body segments/rings */}
+                    <line x1="-5" y1="-4" x2="5" y2="-4" stroke="#d0d0d0" strokeWidth="0.5" opacity="0.6" />
+                    <line x1="-5" y1="0" x2="5" y2="0" stroke="#d0d0d0" strokeWidth="0.5" opacity="0.6" />
+                    <line x1="-5" y1="3" x2="5" y2="3" stroke="#d0d0d0" strokeWidth="0.5" opacity="0.6" />
+                    
+                    {/* Window with gradient and highlight */}
+                    <circle cx="0" cy="-2" r="3" fill="url(#windowGradient)" opacity="0.9" />
+                    <circle cx="0" cy="-2" r="2.5" fill="#4a90e2" opacity="0.6" />
+                    <circle cx="-0.8" cy="-2.5" r="1" fill="#ffffff" opacity="0.4" />
+                    
+                    {/* Enhanced fins/wings */}
+                    {/* Left fin */}
+                    <path d="M -5.5 4 L -9 7 L -7.5 8.5 L -5.5 6.5 Z" 
+                          fill="url(#rocketBodyGradient)" 
+                          stroke="#d0d0d0" 
+                          strokeWidth="0.6" />
+                    <path d="M -5.5 4 L -7 5.5 L -5.5 6.5 Z" fill="#ffffff" opacity="0.6" />
+                    
+                    {/* Right fin */}
+                    <path d="M 5.5 4 L 9 7 L 7.5 8.5 L 5.5 6.5 Z" 
+                          fill="url(#rocketBodyGradient)" 
+                          stroke="#d0d0d0" 
+                          strokeWidth="0.6" />
+                    <path d="M 5.5 4 L 7 5.5 L 5.5 6.5 Z" fill="#ffffff" opacity="0.6" />
+                    
+                    {/* Side highlights for 3D effect */}
+                    <path d="M -7 -10 L -3.5 -13 L -3.5 -8 L -7 -6 Z" fill="#ffffff" opacity="0.3" />
+                    <path d="M 7 -10 L 3.5 -13 L 3.5 -8 L 7 -6 Z" fill="#ffffff" opacity="0.3" />
+                    
+                    {/* Bottom exhaust port */}
+                    <ellipse cx="0" cy="6" rx="3" ry="1.5" fill="#2a2a2a" opacity="0.8" />
+                    
+                    {/* Top antenna/cone detail */}
+                    <circle cx="0" cy="-13" r="1" fill="#ffd700" opacity="0.9" />
+                    <line x1="0" y1="-13" x2="0" y2="-15" stroke="#ffd700" strokeWidth="1.5" opacity="0.9" />
+                    <circle cx="0" cy="-15" r="0.8" fill="#ffd700" opacity="1" />
+                  </g>
+                </g>
               </motion.g>
             </svg>
 
@@ -1201,8 +1323,56 @@ const CrashGame = () => {
                 <div className="status-circle">
                   {showCountdown ? (
                     <>
-                      <div className="countdown-timer">{countdown}</div>
-                      <div className="countdown-text">STARTING IN</div>
+                      {/* Circular Countdown Animation */}
+                      <svg className="countdown-circle" viewBox="0 0 200 200">
+                        <defs>
+                          <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                              <feMergeNode in="coloredBlur"/>
+                              <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                          </filter>
+                          <linearGradient id="countdownGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#ffaa00" />
+                            <stop offset="50%" stopColor="#ffd700" />
+                            <stop offset="100%" stopColor="#ff6b35" />
+                          </linearGradient>
+                        </defs>
+                        {/* Background dashed circle */}
+                        <circle
+                          cx="100"
+                          cy="100"
+                          r="85"
+                          fill="none"
+                          stroke="rgba(255, 255, 255, 0.2)"
+                          strokeWidth="4"
+                          strokeDasharray="5,5"
+                        />
+                        {/* Animated progress arc */}
+                        <circle
+                          className="countdown-progress"
+                          cx="100"
+                          cy="100"
+                          r="85"
+                          fill="none"
+                          stroke="url(#countdownGradient)"
+                          strokeWidth="6"
+                          strokeLinecap="round"
+                          strokeDasharray={`${2 * Math.PI * 85}`}
+                          strokeDashoffset={`${2 * Math.PI * 85 * (1 - (5 - smoothCountdown) / 5)}`}
+                          filter="url(#glow)"
+                          transform="rotate(-90 100 100)"
+                        />
+                      </svg>
+                      <div className="countdown-content">
+                        <div className="next-round-text">NEXT ROUND</div>
+                        <div className="countdown-separator"></div>
+                        <div className="countdown-bets">
+                          <span className="bets-label">BETS</span>
+                          <span className="bets-number">{bets}</span>
+                        </div>
+                      </div>
                     </>
                   ) : isRunning ? (
                     <>
@@ -1213,7 +1383,7 @@ const CrashGame = () => {
                     </>
                   ) : isCrashed ? (
                     <>
-                      {/* Crash multiplier value from WebSocket backend */}
+                      {/* Crash multiplier value from frontend game loop */}
                       <div className="crash-multiplier-display">{multiplier.toFixed(2)}×</div>
                       <div className="crash-text">CRASHED</div>
                     </>
@@ -1237,58 +1407,108 @@ const CrashGame = () => {
               </div>
             )}
 
-           
+
           </div>
         </div>
-        <div className="control-bar">
-        <div className="betting-panel">
-          <div className="mode-tabs">
-            <button className="mode-tab active">Bet</button>
-            <button className="mode-tab">Auto</button>
+      
       </div>
 
-          <div className="bet-input-section">
-            <button className="bet-adjust-btn" onClick={() => adjustBetAmount(-1)}>-</button>
-            <input 
-              type="text" 
-              className="bet-amount-input" 
-              value={betAmount.toFixed(2)}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value) || 0;
-                if (value >= 0) setBetAmount(value);
-              }}
-            />
-            <button className="bet-adjust-btn" onClick={() => adjustBetAmount(1)}>+</button>
-        </div>
-
-          <div className="quick-bets">
-            <button className="quick-bet-btn" onClick={() => setBetAmount(100)}>100</button>
-            <button className="quick-bet-btn" onClick={() => setBetAmount(200)}>200</button>
-            <button className="quick-bet-btn" onClick={() => setBetAmount(500)}>500</button>
-            <button className="quick-bet-btn" onClick={() => setBetAmount(1000)}>1,000</button>
+      {/* Control Bar - Full Width Below Sidebar */}
+      <div className="control-bar">
+        <div className="control-bar-content">
+          {/* Balance Display */}
+          <div className="balance-display">
+            Balance {balance.toFixed(2)} {viewInFun ? 'FUN' : 'INR'}
           </div>
 
+          {/* AUTO Button */}
           <button 
-            className="main-bet-btn" 
-            onClick={isRunning && hasPlacedBet ? handleClaim : placeBet}
-            disabled={isRunning && !hasPlacedBet}
-            title={isRunning && !hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
+            className={`auto-btn ${autoMode ? 'active' : ''}`}
+            onClick={() => setAutoMode(!autoMode)}
           >
-            <div>
-              {isRunning && hasPlacedBet ? 'Claim Now' : 'Bet'}
-            </div>
-            <div>
-              {isRunning && hasPlacedBet && userBetInCurrentGame 
-                ? `Cashout ${userBetInCurrentGame.betAmount.toFixed(2)} INR` 
-                : `${betAmount.toFixed(2)} INR`}
-            </div>
+            AUTO
           </button>
+
+          {/* First Betting Slot */}
+          <div className="betting-slot">
+            {/* Bet Amount Display */}
+            <div className="bet-amount-display">
+              {betAmount.toFixed(2)} {viewInFun ? 'FUN' : 'INR'}
+            </div>
+            
+            {/* Vertical Separator */}
+            <div className="bet-separator"></div>
+
+            {/* Multiplier Input */}
+            <div className="multiplier-input-container">
+              <div className="multiplier-input">
+                <span className="multiplier-dash">-</span>
+              </div>
+              <button 
+                className="multiplier-cancel-btn"
+                onClick={() => setAutoMultiplier(null)}
+                title="Clear multiplier"
+              >
+                <span className="close-x-icon"></span>
+              </button>
+            </div>
+
+            {/* Place Bet Button */}
+            <button
+              className="place-bet-btn"
+              onClick={isRunning && hasPlacedBet ? handleClaim : placeBet}
+              disabled={isRunning && !hasPlacedBet}
+              title={isRunning && !hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
+            >
+              <div className="bet-btn-line1">PLACE BET</div>
+              <div className="bet-btn-line2">(NEXT ROUND)</div>
+            </button>
+          </div>
+
+          {/* Second Betting Slot */}
+          <div className="betting-slot">
+            {/* Bet Amount Display */}
+            <div className="bet-amount-display">
+              {betAmount2.toFixed(2)} {viewInFun ? 'FUN' : 'INR'}
+            </div>
+            
+            {/* Vertical Separator */}
+            <div className="bet-separator"></div>
+
+            {/* Multiplier Input */}
+            <div className="multiplier-input-container">
+              <div className="multiplier-input">
+                <span className="multiplier-dash">-</span>
+              </div>
+              <button 
+                className="multiplier-cancel-btn"
+                onClick={() => setAutoMultiplier2(null)}
+                title="Clear multiplier"
+              >
+                <span className="close-x-icon"></span>
+              </button>
+            </div>
+
+            {/* Place Bet Button */}
+            <button
+              className="place-bet-btn"
+              onClick={() => {
+                // Place bet with second slot amount
+                const originalBet = betAmount;
+                setBetAmount(betAmount2);
+                placeBet();
+                setBetAmount(originalBet);
+              }}
+              disabled={isRunning && !hasPlacedBet}
+              title={isRunning && !hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
+            >
+              <div className="bet-btn-line1">PLACE BET</div>
+              <div className="bet-btn-line2">(NEXT ROUND)</div>
+            </button>
+          </div>
         </div>
       </div>
-      </div>
 
-      {/* Bottom Control Bar */}
-     
 
       {/* Authentication Modal */}
       {showAuthModal && (
@@ -1307,6 +1527,171 @@ const CrashGame = () => {
           onDeposit={handleDeposit}
           user={user}
         />
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="settings-modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div 
+            className="settings-modal" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: `${menuIconPosition.top + 10}px`,
+              left: `${menuIconPosition.left}px`,
+              transform: 'none'
+            }}
+          >
+            {/* Header */}
+            <div className="settings-header">
+              <div className="settings-header-icons">
+                <div className="settings-hamburger-icon"></div>
+                <div className="settings-sound-icon"></div>
+              </div>
+              <div className="settings-header-tabs">
+                <div className="settings-tab active">
+                  <span className="settings-gear-icon"></span>
+                </div>
+                <div className="settings-tab">
+                  <span className="settings-book-icon"></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="settings-content">
+              {/* Volume Section */}
+              <div className="settings-section">
+                <h3 className="settings-section-title">Volume</h3>
+                
+                {/* Music */}
+                <div className="volume-control">
+                  <div className="volume-label">Music</div>
+                  <div className="volume-controls">
+                    <button 
+                      className={`volume-mute-btn ${musicMuted ? 'muted' : ''}`}
+                      onClick={() => {
+                        const newMuted = !musicMuted;
+                        setMusicMuted(newMuted);
+                        localStorage.setItem('musicMuted', newMuted.toString());
+                        // Apply volume change
+                        if (!newMuted && musicVolume > 0) {
+                          // Unmute - restore volume
+                          console.log(`Music unmuted at ${musicVolume}%`);
+                        } else {
+                          console.log('Music muted');
+                        }
+                      }}
+                    >
+                      {musicMuted ? <RxSpeakerOff /> : <HiSpeakerWave />}
+                    </button>
+                    <div className="volume-slider-container">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={musicVolume}
+                        onChange={(e) => {
+                          const newVolume = parseInt(e.target.value);
+                          setMusicVolume(newVolume);
+                          localStorage.setItem('musicVolume', newVolume.toString());
+                          // Auto-unmute when volume is increased
+                          if (newVolume > 0 && musicMuted) {
+                            setMusicMuted(false);
+                            localStorage.setItem('musicMuted', 'false');
+                          }
+                          // Apply volume change
+                          console.log(`Music volume set to ${newVolume}%`);
+                        }}
+                        className="volume-slider"
+                        disabled={musicMuted}
+                      />
+                      <div className="volume-icon-right"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sound FX */}
+                <div className="volume-control">
+                  <div className="volume-label">Sound FX</div>
+                  <div className="volume-controls">
+                    <button 
+                      className={`volume-mute-btn ${soundFxMuted ? 'muted' : ''}`}
+                      onClick={() => {
+                        const newMuted = !soundFxMuted;
+                        setSoundFxMuted(newMuted);
+                        localStorage.setItem('soundFxMuted', newMuted.toString());
+                        // Apply volume change
+                        if (!newMuted && soundFxVolume > 0) {
+                          // Unmute - restore volume
+                          console.log(`Sound FX unmuted at ${soundFxVolume}%`);
+                        } else {
+                          console.log('Sound FX muted');
+                        }
+                      }}
+                    >
+                      {soundFxMuted ? <RxSpeakerOff /> : <HiSpeakerWave />}
+                    </button>
+                    <div className="volume-slider-container">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={soundFxVolume}
+                        onChange={(e) => {
+                          const newVolume = parseInt(e.target.value);
+                          setSoundFxVolume(newVolume);
+                          localStorage.setItem('soundFxVolume', newVolume.toString());
+                          // Auto-unmute when volume is increased
+                          if (newVolume > 0 && soundFxMuted) {
+                            setSoundFxMuted(false);
+                            localStorage.setItem('soundFxMuted', 'false');
+                          }
+                          // Apply volume change
+                          console.log(`Sound FX volume set to ${newVolume}%`);
+                        }}
+                        className="volume-slider"
+                        disabled={soundFxMuted}
+                      />
+                      <div className="volume-icon-right"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Leaderboard Section */}
+              <div className="settings-section">
+                <h3 className="settings-section-title">Leaderboard</h3>
+                <div className="toggle-control">
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={viewInFun}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setViewInFun(newValue);
+                        localStorage.setItem('viewInFun', newValue.toString());
+                        console.log(`View in FUN: ${newValue}`);
+                      }}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <span className="toggle-label">View in FUN</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="settings-footer">
+              <button 
+                className="settings-close-btn"
+                onClick={() => setShowSettingsModal(false)}
+              >
+                <span className="close-x-icon"></span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
