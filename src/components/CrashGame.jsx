@@ -1228,7 +1228,7 @@ const CrashGame = () => {
                     <stop offset="100%" stopColor="#2e5c8a" stopOpacity="0.8" />
                   </radialGradient>
                 </defs>
-                <g transform="translate(0, 0)">
+                <g transform="translate(0, 0) scale(1.5)">
                   {/* Enhanced Yellow Fire */}
                   <g className="rocket-fire">
                     {/* Outer fire glow - largest */}

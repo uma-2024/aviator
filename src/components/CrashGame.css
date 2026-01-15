@@ -800,7 +800,7 @@ body {
 /* Control Bar */
 .control-bar {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   padding: 45px 20px;
   background: #1a1a1a;
