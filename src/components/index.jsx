@@ -6,3 +6,5 @@ export { default as AuthModal } from './AuthModal/AuthModal.jsx';
 export { default as Login } from './Login/Login.jsx';
 export { default as Signup } from './Signup/Signup.jsx';
 export { default as Deposit } from './Deposit/Deposit.jsx';
+export { default as HomePage } from './HomePage/HomePage.jsx';
+export { default as GameDetails } from './GameDetails/GameDetails.jsx';

@@ -1,0 +1,88 @@
+/* Full-screen loader container */
+.loader-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8); /* Black background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 9999; /* Ensure loader is on top */
+  }
+  
+  /* Astronaut styling */
+  .loader-astronaut {
+    width: 180px;
+    height: 280px;
+    margin-bottom: 20px; /* Space between astronaut and circle */
+    animation: astronautFloat 2s infinite alternate;
+    position: absolute;
+    top: 27%;
+    left: 45%;
+    z-index: 1000;
+  }
+  
+  /* Floating animation for astronaut */
+  @keyframes astronautFloat {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  /* Loader circle styling */
+  .loader-circle {
+    width: 208px;
+    height: 208px;
+    border: 10px solid #fff;
+    border-radius: 50%;
+    position: relative;
+    transform: rotate(45deg);
+    box-sizing: border-box;
+    animation: rotateCircle 2s infinite linear;
+  }
+  
+  .loader-circle::before {
+    content: "";
+    position: absolute;
+    box-sizing: border-box;
+    inset: -10px;
+    border-radius: 50%;
+    border: 10px solid #ffd700;
+    animation: prixClipFix 2s infinite linear;
+  }
+  
+  /* Animation for rotating the circle */
+  @keyframes rotateCircle {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Clip animation for loader */
+  @keyframes prixClipFix {
+    0% {
+      clip-path: polygon(50% 50%, 0 0, 0 0, 0 0, 0 0, 0 0);
+    }
+    25% {
+      clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 0, 100% 0, 100% 0);
+    }
+    50% {
+      clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 100% 100%, 100% 100%);
+    }
+    75% {
+      clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 100%);
+    }
+    100% {
+      clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 100%, 0 100%, 0 0);
+    }
+  }
+ 

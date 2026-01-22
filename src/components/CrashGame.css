@@ -31,7 +31,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 63px 20px;
   background: #000000;
   border-bottom: 1px solid #333;
   height: 60px;
@@ -44,8 +44,8 @@ body {
   gap: 15px;
 }
 
-.menu-icon, .volume-icon {
-  font-size: 18px;
+.menu-icon, .volume-icon, .back-icon {
+  font-size: 48px;
   color: #888;
   cursor: pointer;
   padding: 5px;
@@ -53,15 +53,55 @@ body {
   transition: background-color 0.2s;
 }
 
-.menu-icon:hover, .volume-icon:hover {
+.menu-icon:hover, .volume-icon:hover, .back-icon:hover {
   background-color: rgba(255, 255, 255, 0.1);
+  color: #ffd700;
 }
 
 .game-title {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  font-size: 56px;
   font-weight: bold;
-  color: #ffdd00;
-  text-shadow: 0 0 10px rgba(255, 221, 0, 0.5);
+  padding: 10px 20px;
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.logo-space {
+  color: #ffffff;
+  text-shadow: 
+    5px 5px 0px #2a2a2a,
+    4px 4px 0px #333333,
+    3px 3px 0px #3a3a3a,
+    2px 2px 0px #404040,
+    1px 1px 0px #4a4a4a,
+    0px 0px 15px rgba(0, 0, 0, 0.5);
+  margin-right: 0;
+  flex: 2;
+  display: inline-block;
+  position: relative;
+  letter-spacing: 3px;
+  font-weight: 900;
+}
+
+.logo-xy-box {
+  background: #ffd700;
+  padding: 6px 14px;
+  margin-left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 70px;
+  border-radius: 0;
+}
+
+.logo-xy {
+  color: #000000;
+  text-shadow: none;
+  font-weight: bold;
 }
 
 .game-history {
@@ -77,7 +117,7 @@ body {
 .history-item {
   font-size: 14px;
   font-weight: 500;
-  color: white;
+  color: #ffd700;
   padding: 3px 8px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.1);
@@ -123,6 +163,35 @@ body {
   padding: 20px;
   overflow-y: auto;
   width:40%
+}
+
+/* Custom Scrollbar Styling - Black */
+.sidebar::-webkit-scrollbar,
+.table-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track,
+.table-body::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.table-body::-webkit-scrollbar-thumb {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover,
+.table-body::-webkit-scrollbar-thumb:hover {
+  background: #2a2a2a;
+}
+
+/* Firefox scrollbar */
+.sidebar,
+.table-body {
+  scrollbar-width: thin;
+  scrollbar-color: #1a1a1a #000000;
 }
 
 .leaderboard-header {
@@ -189,7 +258,7 @@ body {
 
 .table-header {
   display: grid;
-  grid-template-columns: 1fr 0.8fr 0.8fr 0.9fr;
+  grid-template-columns: 1fr 0.8fr 1fr;
   gap: 8px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.05);
@@ -211,7 +280,7 @@ body {
 
 .table-row {
   display: grid;
-  grid-template-columns: 1fr 0.8fr 0.8fr 0.9fr;
+  grid-template-columns: 1fr 0.8fr 1fr;
   gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -244,10 +313,19 @@ body {
   border-bottom: none;
 }
 
-/* Yellow background highlight for cashed out members */
+/* Light green background highlight for cashed out members */
 .table-row.cashed-out-row {
-  background-color: rgba(255, 215, 0, 0.25) !important; /* Yellow background */
+  background-color: rgba(144, 238, 144, 0.3) !important; /* Light green background */
   animation: cashOutHighlight 0.5s ease-in-out;
+}
+
+/* Player name stays grey always, multiplier stays yellowish */
+.table-row.cashed-out-row .leaderboard-player-name {
+  color: #888888 !important; /* Always grey */
+}
+
+.table-row.cashed-out-row .leaderboard-multiplier {
+  color: #ffd700 !important; /* Yellowish/gold tone */
 }
 
 .table-row.claimed-highlight {
@@ -257,13 +335,13 @@ body {
 
 @keyframes cashOutHighlight {
   0% {
-    background-color: rgba(255, 215, 0, 0.1);
+    background-color: rgba(144, 238, 144, 0.1);
   }
   50% {
-    background-color: rgba(255, 215, 0, 0.4);
+    background-color: rgba(144, 238, 144, 0.4);
   }
   100% {
-    background-color: rgba(255, 215, 0, 0.25);
+    background-color: rgba(144, 238, 144, 0.3);
   }
 }
 
@@ -294,18 +372,23 @@ body {
   white-space: nowrap;
 }
 
-/* Leaderboard styling to match image - green text for names and multipliers */
+/* Leaderboard styling - player name always grey */
 .leaderboard-player-name {
-  color: #00ff00 !important; /* Bright green */
+  color: #888888 !important; /* Grey - always */
   font-weight: 500;
 }
 
 .leaderboard-bet-amount {
-  color: #00ff00 !important; /* Bright green */
+  color: #ffffff !important; /* White text */
+}
+
+/* When bet amount becomes winnings (after cash out), apply yellow background with black text */
+.leaderboard-bet-amount.leaderboard-winnings-box {
+  color: #000 !important; /* Black text on yellow background */
 }
 
 .leaderboard-multiplier {
-  color: #00ff00 !important; /* Bright green */
+  color: #ffd700 !important; /* Yellowish/gold tone */
   font-weight: 600;
 }
 
@@ -320,6 +403,7 @@ body {
   gap: 4px !important;
   min-width: fit-content;
   box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+  justify-content:center ;
 }
 
 .winnings-amount {
@@ -340,13 +424,18 @@ body {
 }
 
 .multiplier-cell {
-  color: #00ff00; /* Green for multipliers */
+  color: #ffd700; /* Yellowish/gold tone for multipliers */
   font-weight: 600;
 }
 
 .winnings-cell {
-  color: #000; /* Black text, yellow background when has winnings */
+  color: #ffffff; /* White text for standard rows */
   font-weight: 600;
+}
+
+/* Black text only when winnings box is shown (cashed out) */
+.winnings-cell .leaderboard-winnings-box {
+  color: #000 !important; /* Black text on yellow background for cashed out */
 }
 
 .empty-state {
@@ -372,12 +461,18 @@ body {
   background: #1a1a1a;
   border-radius: 12px;
   overflow: hidden;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   /* border: 1px solid #444; */
 }
 
 .graph {
   width: 100%;
   height: 100%;
+  min-height: 300px;
+  display: block;
   /* background: #1a1a1a; */
 }
 
@@ -443,17 +538,16 @@ body {
 }
 
 .status-circle {
-  background: rgba(0, 0, 0, 0.8);
-  border: 3px solid #ffdd00;
+
   border-radius: 50%;
-  width: 200px;
-  height: 200px;
+  width: 300px;
+  height: 300px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  box-shadow: 0 0 30px rgba(255, 221, 0, 0.3);
+  /* box-shadow: 0 0 30px rgba(255, 221, 0, 0.3); */
   position: relative;
   overflow: visible;
 }
@@ -493,7 +587,7 @@ body {
 }
 
 .next-round-text {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
   color: #ff6b35;
   text-transform: uppercase;
@@ -504,7 +598,7 @@ body {
 }
 
 .countdown-separator {
-  width: 70%;
+  width: 50%;
   height: 1px;
   background: #fff;
   margin: 6px 0;
@@ -520,20 +614,20 @@ body {
 }
 
 .bets-label {
-  font-size: 11px;
+  font-size: 20px;
   font-weight: 400;
   color: #999;
   text-transform: uppercase;
 }
 
 .bets-number {
-  font-size: 13px;
+  font-size: 26px;
   font-weight: 600;
   color: #fff;
 }
 
 .status-text {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: bold;
   color: #ffdd00;
   text-shadow: 0 0 10px rgba(255, 221, 0, 0.5);
@@ -548,7 +642,7 @@ body {
 }
 
 .bets-count {
-  font-size: 16px;
+  font-size: 26px;
   color: white;
   font-weight: 500;
 }
@@ -571,13 +665,16 @@ body {
   text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
   margin-bottom: 10px;
   font-family: 'Courier New', monospace;
-  animation: crashPulse 0.5s ease-in-out infinite;
+  /* animation: crashPulse 0.5s ease-in-out infinite; */
 }
-
+.crash-multiplier-display {
+  animation: crashPulse 0.5s ease-in-out infinite;
+  color: #fff;
+}
 .status-circle .crash-text {
   font-size: 20px;
   font-weight: bold;
-  color: #ff4444;
+  color: #fff;
   text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -678,61 +775,63 @@ body {
   font-family: 'Courier New', monospace;
 }
 
-/* Crash Effect Animations */
+/* Crash Effect Animations - Warm Glowing Orb */
 .crash-glow {
-  animation: crashPulse 1s ease-in-out 3;
+  /* animation: crashPulse 1.2s ease-in-out infinite; */
+  filter: blur(1px);
 }
 
 .crash-bright {
-  animation: crashBright 0.8s ease-in-out 3;
+  animation: crashBright 1s ease-in-out infinite;
+  filter: blur(1px);
 }
 
 .crash-center {
-  animation: crashExplosion 0.5s ease-in-out 3;
+  animation: crashExplosion 0.8s ease-in-out infinite;
 }
 
 @keyframes crashPulse {
   0% {
-    r: 80;
+    transform: scale(1);
     opacity: 0.5;
   }
   50% {
-    r: 100;
-    opacity: 0.3;
+    transform: scale(1.15);
+    opacity: 0.35;
   }
   100% {
-    r: 80;
+    transform: scale(1);
     opacity: 0.5;
   }
 }
 
 @keyframes crashBright {
   0% {
-    r: 50;
-    opacity: 0.7;
+    transform: scale(1);
+    opacity: 0.75;
   }
   50% {
-    r: 60;
-    opacity: 0.5;
+    transform: scale(1.1);
+    opacity: 0.6;
   }
   100% {
-    r: 50;
-    opacity: 0.7;
+    transform: scale(1);
+    opacity: 0.75;
   }
 }
 
 @keyframes crashExplosion {
   0% {
-    r: 15;
-    opacity: 1;
+    transform: scale(1);
+    opacity: 0.95;
   }
   50% {
-    r: 20;
-    opacity: 0.9;
+    transform: scale(1.2);
+    opacity: 0.85;
   }
   100% {
-    r: 15;
-    opacity: 1;
+    transform: scale(1);
+    opacity: 0.95;
   }
 }
 
@@ -835,12 +934,12 @@ body {
 
 /* AUTO Button */
 .auto-btn {
-  background: #2a2a2a;
+  background: #3a3a3a;
   color: #ffd700;
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -868,11 +967,11 @@ body {
 
 /* Bet Amount Display */
 .bet-amount-display {
-  background: #2a2a2a;
+  background: #3a3a3a;
   color: #fff;
-  padding: 10px 18px;
+  padding: 20px 18px;
   border-radius: 6px 0 0 6px;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 500;
   white-space: nowrap;
   min-width: 90px;
@@ -892,12 +991,14 @@ body {
   display: flex;
   align-items: center;
   gap: 0;
-  background: #2a2a2a;
+  background: #3a3a3a;
   border-radius: 0;
+  padding: 13.5px;
+  border-radius: 0px 6px 6px 0px;
 }
 
 .multiplier-input {
-  background: #2a2a2a;
+  background: #3a3a3a;
   color: #ffd700;
   padding: 10px 12px;
   font-size: 18px;
@@ -905,12 +1006,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
+  gap: 4px;
+  min-width: 60px;
+  position: relative;
 }
 
 .multiplier-line {
   color: #fff;
   font-weight: bold;
+  font-size: 16px;
 }
 
 .multiplier-dash {
@@ -921,7 +1025,7 @@ body {
 }
 
 .multiplier-cancel-btn {
-  background: #2a2a2a;
+  background: #3a3a3a;
   color: #ffd700;
   border: none;
   width: 30px;
@@ -951,11 +1055,11 @@ body {
 /* Place Bet Button */
 .place-bet-btn {
   background: #ffd700;
-  color: #1a1a1a;
+  color: #2a2a2a;
   border: none;
   padding: 10px 20px;
-  border-radius: 0 6px 6px 0;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -968,15 +1072,16 @@ body {
   align-items: center;
   justify-content: center;
   line-height: 1.2;
+  margin-left: 20px;
 }
 
 .bet-btn-line1 {
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .bet-btn-line2 {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   opacity: 0.9;
 }

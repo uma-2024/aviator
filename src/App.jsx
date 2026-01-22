@@ -1,12 +1,18 @@
 import React from 'react';
-import { CrashGame } from './components/index.jsx';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { CrashGame, HomePage } from './components/index.jsx';
 import './App.css';
 
 function App() {
   return (
-    <div className="app">
-      <CrashGame />
-    </div>
+    <Router>
+      <div className="app">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/game" element={<CrashGame />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
