@@ -1474,78 +1474,35 @@ const CrashGame = ({ onBackToHome }) => {
                   {/* Rocket Trail - Smooth Curved Path with Glow */}
                   {/* Rocket Trail - Smooth Curved Path with Glow */}
                   {rocketTrail.length >= 2 && isRunning && (() => {
-                    // Show trail from the very beginning - use all points
-                    const points = rocketTrail;
+  const points = rocketTrail;
 
-                    if (points.length < 2) return null; // Need at least 2 points for a line
+  if (points.length < 2) return null;
 
-                    // Create smooth curved path using cubic bezier curves with more pronounced curves
-                    let pathData = '';
+  // Create smooth curved path using cubic bezier curves
+  let pathData = `M ${points[0].x} ${points[0].y}`;
 
-                    if (points.length > 0) {
-                      // Start at first point (bottom-left origin)
-                      pathData = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * 0.5;
+    const cp1y = points[i-1].y + (points[i].y - points[i-1].y) * 0.5;
+    pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`;
+  }
 
-                      // Create smooth curved path between points using cubic bezier
-                      for (let i = 1; i < points.length; i++) {
-                        if (i === 1) {
-                          // First segment: smooth curved line to second point
-                          const cp1x = points[0].x + (points[1].x - points[0].x) * 0.5;
-                          const cp1y = points[0].y + (points[1].y - points[0].y) * 0.5;
-                          pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`;
-                        } else {
-                          // Calculate control points for smooth curved cubic bezier
-                          const prevPoint = points[i - 1];
-                          const currentPoint = points[i];
-                          const prevPrevPoint = points[i - 2] || prevPoint;
-                          const nextPoint = points[i + 1] || currentPoint;
+  return (
+    <g>
+      {/* Main bright trail path */}
+      <path
+        d={pathData}
+        fill="none"
+        stroke="url(#trailGradient)"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="1"
+      />
+    </g>
+  );
+})()}
 
-                          // Calculate direction vectors for smoother curves
-                          const dx1 = prevPoint.x - prevPrevPoint.x;
-                          const dy1 = prevPoint.y - prevPrevPoint.y;
-                          const dx2 = nextPoint.x - currentPoint.x;
-                          const dy2 = nextPoint.y - currentPoint.y;
-
-                          // Control point 1: creates smooth curved transition (increased influence for more curve)
-                          const cp1x = prevPoint.x + dx1 * 0.6;
-                          const cp1y = prevPoint.y + dy1 * 0.6;
-
-                          // Control point 2: creates smooth curved transition to current point (increased influence)
-                          const cp2x = currentPoint.x - dx2 * 0.6;
-                          const cp2y = currentPoint.y - dy2 * 0.6;
-
-                          // Use cubic bezier for pronounced smooth curves
-                          pathData += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${currentPoint.x} ${currentPoint.y}`;
-                        }
-                      }
-                    }
-
-                    return (
-                      <g>
-                        {/* Subtle glow halo around the trail */}
-                        <path
-                          d={pathData}
-                          fill="none"
-                          stroke="url(#trailGlowGradient)"
-                          strokeWidth="10"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          opacity="0.6"
-                          filter="url(#trailGlow)"
-                        />
-                        {/* Main bright trail path */}
-                        <path
-                          d={pathData}
-                          fill="none"
-                          stroke="url(#trailGradient)"
-                          strokeWidth="5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          opacity="1"
-                        />
-                      </g>
-                    );
-                  })}
 
 
 
