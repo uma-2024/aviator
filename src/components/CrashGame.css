@@ -661,11 +661,14 @@ body {
 .status-circle .crash-multiplier-display {
   font-size: 48px;
   font-weight: bold;
-  color: #ff4444;
+  color: #fff;
   text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
   margin-bottom: 10px;
   font-family: 'Courier New', monospace;
   /* animation: crashPulse 0.5s ease-in-out infinite; */
+}
+.crash-multiplier-display{
+  color: #fff;
 }
 .crash-multiplier-display {
   animation: crashPulse 0.5s ease-in-out infinite;
@@ -1739,3 +1742,4 @@ body {
 .settings-close-btn:hover {
   transform: scale(1.1);
 }
+

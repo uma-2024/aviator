@@ -608,6 +608,7 @@ const CrashGame = ({ onBackToHome }) => {
       };
 
       // Function to update rocket position
+      // Update the rocket position based on the current multiplier
       const updateRocketPosition = (normalizedMultiplier) => {
         const graphStartX = 40;
         const graphEndX = 380;
@@ -643,10 +644,12 @@ const CrashGame = ({ onBackToHome }) => {
           rocketTrailRef.current.shift(); // Remove the first element
         }
 
-        // Update the trail display every few frames
+        // Update the trail display every few frames (every 3 frames)
         if (trailUpdateCounterRef.current >= 3) {
-          setRocketTrail([...rocketTrailRef.current]);
-          trailUpdateCounterRef.current = 0;  // Reset counter
+          setRocketTrail([...rocketTrailRef.current]); // This triggers a re-render
+          trailUpdateCounterRef.current = 0; // Reset counter
+        } else {
+          trailUpdateCounterRef.current++;
         }
       };
 
@@ -817,6 +820,47 @@ const CrashGame = ({ onBackToHome }) => {
       alert('Insufficient balance');
     }
   };
+
+  const drawRocketTrail = () => {
+    const points = rocketTrail;
+
+    // Ensure there are enough points to draw a path
+    if (points.length < 2) return null; // Need at least 2 points to draw a path
+
+    // Create a path that connects the rocket's positions
+    let pathData = `M ${points[0].x} ${points[0].y}`; // Move to the first point
+
+    for (let i = 1; i < points.length; i++) {
+      const cp1x = points[i - 1].x + (points[i].x - points[i - 1].x) * 0.5; // Control point 1 X
+      const cp1y = points[i - 1].y + (points[i].y - points[i - 1].y) * 0.5; // Control point 1 Y
+      pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`; // Quadratic Bezier curve
+    }
+
+    // Ensure pathData is valid
+    if (!pathData || pathData.length === 0) {
+      console.error("Path data is invalid:", pathData);
+      return null;
+    }
+
+    return (
+      <g>
+        {/* Main bright trail path */}
+        <path
+          d={pathData}
+          fill="none"
+          stroke="url(#trailGradient)" // Gradient for the trail (you already have this)
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="1"
+        />
+      </g>
+    );
+  };
+
+
+
+
 
   const adjustBetAmount = (amount) => {
     const newAmount = betAmount + amount;
@@ -1271,12 +1315,15 @@ const CrashGame = ({ onBackToHome }) => {
                       <path d="M 200 0 L 0 0 0 150" fill="none" stroke="#444" strokeWidth="0.5" opacity="0.4" />
                     </pattern>
                     {/* Trail gradient - faint at start, bright yellow-orange at end (near crash point) */}
-                    <linearGradient id="trailGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.4" />
-                      <stop offset="30%" stopColor="#ff8800" stopOpacity="0.6" />
-                      <stop offset="60%" stopColor="#ff8800" stopOpacity="0.8" />
-                      <stop offset="100%" stopColor="#ffaa00" stopOpacity="1" />
-                    </linearGradient>
+                    <defs>
+                      <linearGradient id="trailGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.4" />
+                        <stop offset="30%" stopColor="#ff8800" stopOpacity="0.6" />
+                        <stop offset="60%" stopColor="#ff8800" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#ffaa00" stopOpacity="1" />
+                      </linearGradient>
+                    </defs>
+
                     {/* Glow gradient for trail halo effect */}
                     <linearGradient id="trailGlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.1" />
@@ -1284,7 +1331,7 @@ const CrashGame = ({ onBackToHome }) => {
                       <stop offset="100%" stopColor="#ffaa00" stopOpacity="0.3" />
                     </linearGradient>
                     {/* Enhanced glow filter for trail halo - subtle luminous effect */}
-                    <filter id="trailGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <filter id="trailGlow" x="-50%" y="-50%" width="100%" height="100%">
                       <feGaussianBlur stdDeviation="4" result="coloredBlur" />
                       <feMerge>
                         <feMergeNode in="coloredBlur" />
@@ -1297,19 +1344,19 @@ const CrashGame = ({ onBackToHome }) => {
                     </radialGradient>
                     {/* Warm glowing orb gradient - yellow-white core to orange/yellow/red */}
                     <radialGradient id="crashGradient" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                      <stop offset="15%" stopColor="#ffff00" stopOpacity="1" />
-                      <stop offset="30%" stopColor="#ffaa00" stopOpacity="1" />
-                      <stop offset="50%" stopColor="#ff6b35" stopOpacity="1" />
-                      <stop offset="70%" stopColor="#ff4444" stopOpacity="0.95" />
-                      <stop offset="100%" stopColor="#cc0000" stopOpacity="0.85" />
+                      <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+                      <stop offset="15%" stopColor="#ffff00" stopOpacity="0.3" />
+                      <stop offset="30%" stopColor="#ffaa00" stopOpacity="0.3" />
+                      <stop offset="50%" stopColor="#ff6b35" stopOpacity="0.3" />
+                      <stop offset="70%" stopColor="#ff4444" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#cc0000" stopOpacity="0.3" />
                     </radialGradient>
                     {/* Outer glow gradient for bloom effect */}
-                    <radialGradient id="crashOuterGlow" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.6" />
-                      <stop offset="50%" stopColor="#ff6b35" stopOpacity="0.4" />
+                    {/* <radialGradient id="crashOuterGlow" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.2" />
+                      <stop offset="50%" stopColor="#ff6b35" stopOpacity="0.2" />
                       <stop offset="100%" stopColor="#cc0000" stopOpacity="0.2" />
-                    </radialGradient>
+                    </radialGradient> */}
                   </defs>
 
                   {/* Grid Background */}
@@ -1469,52 +1516,42 @@ const CrashGame = ({ onBackToHome }) => {
                   {/* Axis titles */}
                   <text x="200" y="15" className="axis-title" textAnchor="middle">MULTIPLIER</text>
                   <text x="390" y="270" className="axis-title" textAnchor="end">TIME</text>
+                  <svg className="graph" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+                    {/* Existing Graph Components */}
 
-                  {/* Rocket Trail - Smooth Curved Path with Glow */}
-                  {/* Rocket Trail - Smooth Curved Path with Glow */}
-                  {/* Rocket Trail - Smooth Curved Path with Glow */}
-                  {rocketTrail.length >= 2 && isRunning && (() => {
-  const points = rocketTrail;
+                    {/* Rocket Trail */}
+                    <motion.g
+                      initial={{ translateX: 40, translateY: 280, opacity: 1, rotate: 0 }}
+                      animate={rocketControls}
+                      className="rocket-graph"
+                    >
+                      <image
+                        href={rocketImage}
+                        x="-60"
+                        y="-80"
+                        width="120"
+                        height="160"
+                        preserveAspectRatio="xMidYMid meet"
+                        style={{ transformOrigin: 'center center' }}
+                      />
+                    </motion.g>
 
-  if (points.length < 2) return null;
+                    {/* Rocket Trail */}
+                    {rocketTrail.length >= 2 && isRunning && drawRocketTrail()}
 
-  // Create smooth curved path using cubic bezier curves
-  let pathData = `M ${points[0].x} ${points[0].y}`;
-
-  for (let i = 1; i < points.length; i++) {
-    const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * 0.5;
-    const cp1y = points[i-1].y + (points[i].y - points[i-1].y) * 0.5;
-    pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`;
-  }
-
-  return (
-    <g>
-      {/* Main bright trail path */}
-      <path
-        d={pathData}
-        fill="none"
-        stroke="url(#trailGradient)"
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="1"
-      />
-    </g>
-  );
-})()}
-
+                  </svg>
 
 
 
                   {/* Crash Effect - Single Radial Gradient Orb */}
                   {showCrashEffect && (
                     <circle
-                    cx="200"  // Center of the graph width (assuming 400px wide graph)
-                    cy="150"  // Center of the graph height (assuming 300px high graph)
-                    r="100"
-                    fill="url(#crashGradient)"
-                    opacity="1"
-                    className="crash-glow"
+                      cx="200"  // Center of the graph width (assuming 400px wide graph)
+                      cy="150"  // Center of the graph height (assuming 300px high graph)
+                      r="100"
+                      fill="url(#crashGradient)"
+                      opacity="1"
+                      className="crash-glow"
                     />
                   )}
 
