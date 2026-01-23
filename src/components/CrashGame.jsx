@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, useAnimation } from "framer-motion";
 import { HiSpeakerWave } from "react-icons/hi2";
 import { RxSpeakerOff } from "react-icons/rx";
-import rocketGif from "../Assets/Rocket.gif";
 import rocketImage from "../Assets/rocket1.png";
 import AuthModal from "./AuthModal/AuthModal.jsx";
 import Deposit from "./Deposit/Deposit.jsx";
@@ -12,38 +11,38 @@ import Loader from "./Loader/Loader.jsx";
 
 const CrashGame = ({ onBackToHome }) => {
   // Fake usernames pool for generating realistic fake members
-  const FAKE_USERNAMES = [
-    'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
-    'Rah', 'Tom', 'Jer', 'Max', 'Leo', 'Zoe', 'Kim', 'Dan', 'Eva', 'Roy',
-    'Ivy', 'Ben', 'Amy', 'Jay', 'Kay', 'Rob', 'Tim', 'Joe', 'Bob', 'Pat'
-  ];
+// Instead of defining FAKE_USERNAMES as a constant, use useMemo to memoize it
+const FAKE_USERNAMES = useMemo(() => [
+  'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
+  'Rah', 'Tom', 'Jer', 'Max', 'Leo', 'Zoe', 'Kim', 'Dan', 'Eva', 'Roy',
+  'Ivy', 'Ben', 'Amy', 'Jay', 'Kay', 'Rob', 'Tim', 'Joe', 'Bob', 'Pat'
+], []);
 
-  // Generate a fake user with masked name
-  const generateFakeUser = () => {
-    const baseName = FAKE_USERNAMES[Math.floor(Math.random() * FAKE_USERNAMES.length)];
-    const nameLength = baseName.length;
-    const maskLength = Math.floor(Math.random() * 3) + 2; // 2-4 asterisks
-    const maskedName = baseName + '*'.repeat(maskLength);
+// Now FAKE_USERNAMES won't change on each render
+const generateFakeUser = useCallback(() => {
+  const baseName = FAKE_USERNAMES[Math.floor(Math.random() * FAKE_USERNAMES.length)];
+  const maskLength = Math.floor(Math.random() * 3) + 2; // 2-4 asterisks
+  const maskedName = baseName + '*'.repeat(maskLength);
+  
+  const betAmount = Math.floor(Math.random() * 900 + 10); // 10-1000
+  const hasCashedOut = Math.random() > 0.3;
+  const cashOutMultiplier = hasCashedOut
+    ? parseFloat((1.05 + Math.random() * 8.95).toFixed(2)) // 1.05x to 10.0x
+    : null;
+  const winnings = hasCashedOut
+    ? parseFloat((betAmount * cashOutMultiplier).toFixed(2))
+    : (Math.random() > 0.5 ? 1.00 : 0.00); // Some losses show 1.00 FUN
 
-    const betAmount = Math.floor(Math.random() * 900 + 10); // 10-1000
-    // 70% chance of having cashed out, 30% chance still in play
-    const hasCashedOut = Math.random() > 0.3;
-    const cashOutMultiplier = hasCashedOut
-      ? parseFloat((1.05 + Math.random() * 8.95).toFixed(2)) // 1.05x to 10.0x
-      : null;
-    const winnings = hasCashedOut
-      ? parseFloat((betAmount * cashOutMultiplier).toFixed(2))
-      : (Math.random() > 0.5 ? 1.00 : 0.00); // Some losses show 1.00 FUN
-
-    return {
-      name: maskedName,
-      betAmount: betAmount,
-      cashOutMultiplier: cashOutMultiplier,
-      winnings: winnings,
-      userId: `fake_${Date.now()}_${Math.random()}`,
-      isFake: true
-    };
+  return {
+    name: maskedName,
+    betAmount: betAmount,
+    cashOutMultiplier: cashOutMultiplier,
+    winnings: winnings,
+    userId: `fake_${Date.now()}_${Math.random()}`,
+    isFake: true
   };
+}, [FAKE_USERNAMES]);  // Now `FAKE_USERNAMES` will not trigger re-creation of `generateFakeUser` callback unnecessarily
+
   // Authentication state
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -77,15 +76,15 @@ const CrashGame = ({ onBackToHome }) => {
   const [multiplier, setMultiplier] = useState(1.0);
   const [displayMultiplier, setDisplayMultiplier] = useState(1.0); // smoothed UI multiplier
   const displayMultiplierRef = useRef(1.0); // Track current displayMultiplier value (not stale)
-  const [rocketVisualMultiplier, setRocketVisualMultiplier] = useState(1.0); // Rocket visual multiplier (faster than actual)
+  const [, setRocketVisualMultiplier] = useState(1.0); // Rocket visual multiplier (faster than actual)
   const rocketVisualMultiplierRef = useRef(1.0); // Track rocket visual multiplier
-  const animStartRef = useRef(null);
+  // const animStartRef = useRef(null);
   const fromMultiplierRef = useRef(1.0);
   const toMultiplierRef = useRef(1.0);
   const rafRef = useRef(null);
   const lastTargetRef = useRef(1.0);
-  const [crashMessage, setCrashMessage] = useState(null); // Message to display
-  const [crashMultiplier, setCrashMultiplier] = useState(null); // Multiplier when crashed
+  // const [crashMessage, setCrashMessage] = useState(null); // Message to display
+  // const [crashMultiplier, setCrashMultiplier] = useState(null); // Multiplier when crashed
   const [isCrashed, setIsCrashed] = useState(false);
   const isCrashedRef = useRef(false);
   const [roundOver, setRoundOver] = useState(false);
@@ -93,26 +92,26 @@ const CrashGame = ({ onBackToHome }) => {
   const isRunningRef = useRef(false);
   const [balance, setBalance] = useState(1000.00);
   const [betAmount, setBetAmount] = useState(50.00);
-  const [betAmount2, setBetAmount2] = useState(50.00); // Second betting slot
+  const [betAmount2, ] = useState(50.00); // Second betting slot
   const [bets, setBets] = useState(12);
   const [autoMode, setAutoMode] = useState(false);
-  const [autoMultiplier, setAutoMultiplier] = useState(null);
-  const [autoMultiplier2, setAutoMultiplier2] = useState(null); // Second slot multiplier
-  const [countdown, setCountdown] = useState(5);
+  const [, setAutoMultiplier] = useState(null);
+  const [, setAutoMultiplier2] = useState(null); // Second slot multiplier
+  const [, setCountdown] = useState(5);
   const [smoothCountdown, setSmoothCountdown] = useState(5); // For smooth circular animation
-  const [currentGameId, setCurrentGameId] = useState(null);
+  const [currentGameId, ] = useState(null);
   const currentGameIdRef = useRef(null);
   // const [pendingParticipants, setPendingParticipants] = useState([]); // Unused - removed for build
   const [showCountdown, setShowCountdown] = useState(false);
   const [hasPlacedBet, setHasPlacedBet] = useState(false);
-  const [isWaitingForGame, setIsWaitingForGame] = useState(false);
+  const [, setIsWaitingForGame] = useState(false);
   const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);
   const [showStatus] = useState(true); // Used in JSX, but setter not needed
   const [rocketTrail, setRocketTrail] = useState([]);
   const rocketTrailRef = useRef([]); // Store trail in ref to avoid re-renders every frame
   const trailUpdateCounterRef = useRef(0); // Update trail state only every few frames
   const [showCrashEffect, setShowCrashEffect] = useState(false);
-  const [crashPosition, setCrashPosition] = useState({ x: 0, y: 0 });
+  const [, setCrashPosition] = useState({ x: 0, y: 0 });
   // const [maxMultiplier, setMaxMultiplier] = useState(1.5); // Unused - removed for build
   const [gameHistory, setGameHistory] = useState([1.66, 1.04, 1.24, 7.60, 1.88, 32.21, 3.59, 1.21, 1.86, 3.25].slice(0, 10));
   const [leaderboard, setLeaderboard] = useState([]);
@@ -339,7 +338,7 @@ const CrashGame = ({ onBackToHome }) => {
         fakeMembersIntervalRef.current = null;
       }
     };
-  }, [showCountdown]); // Run when countdown starts
+  }, [showCountdown, generateFakeUser]); // Run when countdown starts
 
   // Frontend game loop - generates random multipliers and controls game flow
   useEffect(() => {
@@ -720,7 +719,7 @@ const CrashGame = ({ onBackToHome }) => {
         rafRef.current = null;
       }
     };
-  }, []); // Run once on mount
+  }, [rocketControls]); // Run once on mount
 
 
   // Fetch crash history on component mount
@@ -862,12 +861,12 @@ const CrashGame = ({ onBackToHome }) => {
 
 
 
-  const adjustBetAmount = (amount) => {
-    const newAmount = betAmount + amount;
-    if (newAmount >= 0) {
-      setBetAmount(newAmount);
-    }
-  };
+  // const adjustBetAmount = (amount) => {
+  //   const newAmount = betAmount + amount;
+  //   if (newAmount >= 0) {
+  //     setBetAmount(newAmount);
+  //   }
+  // };
 
   const handleClaim = async () => {
     if (!user || !currentGameId || !hasPlacedBet || !userBetInCurrentGame) {
@@ -916,8 +915,8 @@ const CrashGame = ({ onBackToHome }) => {
   useEffect(() => {
     // Graph boundaries (consistent across all browsers)
     const graphStartX = 40;  // Y-axis position
-    const graphEndX = 380;   // Right edge
-    const graphStartY = 20;  // Top edge
+    // const graphEndX = 380;   // Right edge
+    // const graphStartY = 20;  // Top edge
     const graphEndY = 280;   // X-axis position (bottom of graph)
     const axisX = graphStartX;
     const axisY = graphEndY;
@@ -949,33 +948,33 @@ const CrashGame = ({ onBackToHome }) => {
     // Use displayMultiplier directly to match Y-axis speed
     const currentMultiplier = displayMultiplier;
 
-    const fixedMax = 10; // Fixed scale: 1.0 to 10 (for Y-axis calculations)
+    // const fixedMax = 10; // Fixed scale: 1.0 to 10 (for Y-axis calculations)
 
     // Calculate rocket Y position with positive upward parabola path
     // Rocket moves upward in a smooth parabolic curve
     // Y-axis only changes when rocket can't match multiplier (reaches near top)
-    const getRocketYPosition = (multiplier) => {
-      if (multiplier <= 1.0) return axisY; // Bottom at 1.0x
+    // const getRocketYPosition = (multiplier) => {
+    //   if (multiplier <= 1.0) return axisY; // Bottom at 1.0x
 
-      const topY = graphStartY; // 20
-      const totalHeight = axisY - topY; // 280 - 20 = 260
-      const maxMultiplier = 10.0;
+    //   const topY = graphStartY; // 20
+    //   const totalHeight = axisY - topY; // 280 - 20 = 260
+    //   const maxMultiplier = 10.0;
 
-      // Normalize multiplier (0 to 1)
-      const normalizedMultiplier = (multiplier - 1.0) / (maxMultiplier - 1.0);
+    //   // Normalize multiplier (0 to 1)
+    //   const normalizedMultiplier = (multiplier - 1.0) / (maxMultiplier - 1.0);
 
-      // Positive upward parabola: y = x² (rocket rises faster as multiplier increases)
-      const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
+    //   // Positive upward parabola: y = x² (rocket rises faster as multiplier increases)
+    //   const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
 
-      // Calculate Y position using pure parabolic curve
-      // Rocket moves upward smoothly in parabolic path
-      const yPosition = axisY - (parabolicProgress * totalHeight);
+    //   // Calculate Y position using pure parabolic curve
+    //   // Rocket moves upward smoothly in parabolic path
+    //   const yPosition = axisY - (parabolicProgress * totalHeight);
 
-      return Math.max(graphStartY + 10, Math.min(axisY - 10, yPosition));
-    };
+    //   return Math.max(graphStartY + 10, Math.min(axisY - 10, yPosition));
+    // };
 
     // Calculate rocket Y position first to determine if Y-axis needs to scroll
-    const rocketYPos = getRocketYPosition(currentMultiplier);
+    // const rocketYPos = getRocketYPosition(currentMultiplier);
 
     // Y-axis changes very fast with specific max values for each line
     // Line 1 (bottom): max 2.0x, Line 2: max 4.0x, Line 3: max 6.0x, Line 4: max 8.0x, Line 5: max 10.0x
@@ -987,7 +986,7 @@ const CrashGame = ({ onBackToHome }) => {
     // Y-axis scrolls very fast using rocketVisualMultiplier
     const tickStep = 0.1;
     const totalTicks = 6;
-    const tickGapPx = (graphEndY - graphStartY) / (totalTicks - 1); // ~52px per tick
+    // const tickGapPx = (graphEndY - graphStartY) / (totalTicks - 1); // ~52px per tick
 
     let adjustedBaseTick;
     let ticks = [];
@@ -1023,41 +1022,41 @@ const CrashGame = ({ onBackToHome }) => {
 
     // Calculate rocket position - curved path from the start (like in the image)
     // Both X and Y must progress together smoothly for proper curved path
-    const maxXDistance = graphEndX - graphStartX - 20;
+    // const maxXDistance = graphEndX - graphStartX - 20;
 
     // Use same multiplier scale for both X and Y to ensure synchronized movement
-    const maxMultiplier = 10.0;
-    const normalizedMultiplier = Math.min((currentMultiplier - 1.0) / (maxMultiplier - 1.0), 1.0);
+    // const maxMultiplier = 10.0;
+    // const normalizedMultiplier = Math.min((currentMultiplier - 1.0) / (maxMultiplier - 1.0), 1.0);
 
     // Positive upward parabola: y = x² (rocket rises faster as multiplier increases)
     // Use this for both X and Y to create smooth curved path
-    const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
+    // const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
 
     // X position: curved path from start (positive parabola)
     // Rocket moves right and curves upward simultaneously
-    const xProgress = normalizedMultiplier; // Use normalized multiplier for X progression
-    const curveFactor = xProgress * xProgress; // Quadratic curve factor (positive parabola)
-    const linearFactor = xProgress; // Linear factor
+    // const xProgress = normalizedMultiplier; // Use normalized multiplier for X progression
+    // const curveFactor = xProgress * xProgress; // Quadratic curve factor (positive parabola)
+    // const linearFactor = xProgress; // Linear factor
 
     // Combine both factors to create smooth curve from start
     // More weight on curve factor to make it curve from beginning (positive upward parabola)
-    const curvedProgress = linearFactor * 0.3 + curveFactor * 0.7;
+    // const curvedProgress = linearFactor * 0.3 + curveFactor * 0.7;
 
     // X position follows curved path from the start (positive parabola)
-    const rocketX = axisX + (curvedProgress * maxXDistance * 0.9);
+    // const rocketX = axisX + (curvedProgress * maxXDistance * 0.9);
 
     // Y position: calculated using same parabolic progress for synchronized movement
-    let finalRocketY = getRocketYPosition(currentMultiplier);
+    // let finalRocketY = getRocketYPosition(currentMultiplier);
 
-    // Keep rocket at starting position if multiplier is less than 1.0
-    if (currentMultiplier < 1.0) {
-      finalRocketY = axisY;
-    }
+    // // Keep rocket at starting position if multiplier is less than 1.0
+    // if (currentMultiplier < 1.0) {
+    //   finalRocketY = axisY;
+    // }
 
     // Constrain to graph bounds (consistent across all browsers)
-    const minY = graphStartY + 10;
-    const maxY = graphEndY - 10;
-    finalRocketY = Math.max(minY, Math.min(maxY, finalRocketY));
+    // const minY = graphStartY + 10;
+    // const maxY = graphEndY - 10;
+    // finalRocketY = Math.max(minY, Math.min(maxY, finalRocketY));
 
     // Rocket trail is now updated in gameLoop() using refs for performance
     // This useEffect only syncs trail state when needed (not every frame)
@@ -1067,7 +1066,7 @@ const CrashGame = ({ onBackToHome }) => {
     // This useEffect only handles trail updates and Y-axis calculations
     // Rocket position is updated directly in gameLoop for perfect synchronization (60fps)
     // No rocket movement here to avoid double updates and render-dependent lag
-  }, [displayMultiplier, isRunning, isCrashed]);
+  }, [displayMultiplier, isRunning, isCrashed, rocketControls]);
 
   // Handle crash animation - calculate position from final multiplier using new scale (1.0-10)
   useEffect(() => {

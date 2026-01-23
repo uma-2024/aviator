@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import { FaTrophy, FaLock, FaSearch } from 'react-icons/fa';  // Import React Icons
 import './HomeHeader.css';
 
@@ -26,29 +27,29 @@ const HomeHeader = () => {
 
         {/* Center: Navigation */}
         <nav className="header-nav">
-          <a href="#" className="nav-item">
+          <Link to="/fortune-wheel" className="nav-item">
             <span className="nav-icon"><FaLock /></span> {/* React Icon */}
             <span className="nav-text">FORTUNE WHEEL</span>
-          </a>
-          <a href="#" className="nav-item">
+          </Link>
+          <Link to="/leaderboard" className="nav-item">
             <span className="nav-icon"><FaTrophy /></span> {/* React Icon */}
             <span className="nav-text">LEADERBOARD</span>
-          </a>
-          <a href="#" className="nav-item">
+          </Link>
+          <Link to="/live-rtp" className="nav-item">
             <span className="nav-text">LIVE RTP</span>
-          </a>
-          <a href="#" className="nav-item">
+          </Link>
+          <Link to="/top-wins" className="nav-item">
             <span className="nav-text">TOP WINS</span>
-          </a>
-          <a href="#" className="nav-item">
+          </Link>
+          <Link to="/faq" className="nav-item">
             <span className="nav-text">FAQ</span>
-          </a>
-          <a href="#" className="nav-item">
+          </Link>
+          <Link to="/games" className="nav-item">
             <span className="nav-text">GAMES</span>
-          </a>
-          <a href="#" className="nav-item search">
+          </Link>
+          <Link to="#" className="nav-item search">
             <span className="nav-icon"><FaSearch /></span> {/* React Icon */}
-          </a>
+          </Link>
         </nav>
 
         {/* Right: Login Button */}
