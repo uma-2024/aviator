@@ -22,7 +22,7 @@ const HomeHeader = () => {
       <div className="header-main">
         {/* Left: Logo */}
         <div className="header-logo">
-          <span className="logo-text">PLAYERS HUB</span>
+          <span className="logo-text">Pro Aviator</span>
         </div>
 
         {/* Center: Navigation */}

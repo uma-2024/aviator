@@ -25,7 +25,7 @@ const Footer = () => {
         <div className="footer-top">
           {/* Left - Logo */}
           <div className="footer-logo">
-            <span className="footer-logo-text">PLAYERS HUB</span>
+            <span className="footer-logo-text">Pro Aviator</span>
           </div>
 
           {/* Center - Navigation Links */}

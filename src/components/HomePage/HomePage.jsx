@@ -8,10 +8,10 @@ import FAQSection from './FAQSection';
 import BenefitsSection from './BenefitsSection';
 import Footer from './Footer';
 import spaceXYImage from '../../Assets/backImage.webp';
-import image1 from '../../Assets/image1.webp';
-import image2 from '../../Assets/image2.webp';
-import image3 from '../../Assets/image3.webp';
-import smallImage from '../../Assets/smallimage.webp';
+import image1 from '../../Assets/image1.png';
+import image2 from '../../Assets/image2.png';
+import image3 from '../../Assets/image3.png';
+import smallImage from '../../Assets/smallimage.png';
 const HomePage = ({ onSignUp }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const navigate = useNavigate(); // Use navigate hook to navigate to another route

@@ -13,8 +13,8 @@ const GameDetails = ({ onDemoPlay, onTrailer }) => {
       {/* Left Section */}
       <div className="game-details-left">
         <h1 className="game-title">
-          <span className="title-space">SPACE</span>
-          <span className="title-xy">XY</span>
+          <span className="title-space">Pro</span>
+          <span className="title-xy">Aviator</span>
         </h1>
         
         <p className="game-description">

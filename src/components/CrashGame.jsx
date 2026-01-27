@@ -11,37 +11,37 @@ import Loader from "./Loader/Loader.jsx";
 
 const CrashGame = ({ onBackToHome }) => {
   // Fake usernames pool for generating realistic fake members
-// Instead of defining FAKE_USERNAMES as a constant, use useMemo to memoize it
-const FAKE_USERNAMES = useMemo(() => [
-  'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
-  'Rah', 'Tom', 'Jer', 'Max', 'Leo', 'Zoe', 'Kim', 'Dan', 'Eva', 'Roy',
-  'Ivy', 'Ben', 'Amy', 'Jay', 'Kay', 'Rob', 'Tim', 'Joe', 'Bob', 'Pat'
-], []);
 
-// Now FAKE_USERNAMES won't change on each render
-const generateFakeUser = useCallback(() => {
-  const baseName = FAKE_USERNAMES[Math.floor(Math.random() * FAKE_USERNAMES.length)];
-  const maskLength = Math.floor(Math.random() * 3) + 2; // 2-4 asterisks
-  const maskedName = baseName + '*'.repeat(maskLength);
-  
-  const betAmount = Math.floor(Math.random() * 900 + 10); // 10-1000
-  const hasCashedOut = Math.random() > 0.3;
-  const cashOutMultiplier = hasCashedOut
-    ? parseFloat((1.05 + Math.random() * 8.95).toFixed(2)) // 1.05x to 10.0x
-    : null;
-  const winnings = hasCashedOut
-    ? parseFloat((betAmount * cashOutMultiplier).toFixed(2))
-    : (Math.random() > 0.5 ? 1.00 : 0.00); // Some losses show 1.00 FUN
+  const FAKE_USERNAMES = useMemo(() => [
+    'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
+    'Rah', 'Tom', 'Jer', 'Max', 'Leo', 'Zoe', 'Kim', 'Dan', 'Eva', 'Roy',
+    'Ivy', 'Ben', 'Amy', 'Jay', 'Kay', 'Rob', 'Tim', 'Joe', 'Bob', 'Pat'
+  ], []);
 
-  return {
-    name: maskedName,
-    betAmount: betAmount,
-    cashOutMultiplier: cashOutMultiplier,
-    winnings: winnings,
-    userId: `fake_${Date.now()}_${Math.random()}`,
-    isFake: true
-  };
-}, [FAKE_USERNAMES]);  // Now `FAKE_USERNAMES` will not trigger re-creation of `generateFakeUser` callback unnecessarily
+  // Now FAKE_USERNAMES won't change on each render
+  const generateFakeUser = useCallback(() => {
+    const baseName = FAKE_USERNAMES[Math.floor(Math.random() * FAKE_USERNAMES.length)];
+    const maskLength = Math.floor(Math.random() * 3) + 2; // 2-4 asterisks
+    const maskedName = baseName + '*'.repeat(maskLength);
+
+    const betAmount = Math.floor(Math.random() * 900 + 10); // 10-1000
+    const hasCashedOut = Math.random() > 0.3;
+    const cashOutMultiplier = hasCashedOut
+      ? parseFloat((1.05 + Math.random() * 8.95).toFixed(2)) // 1.05x to 10.0x
+      : null;
+    const winnings = hasCashedOut
+      ? parseFloat((betAmount * cashOutMultiplier).toFixed(2))
+      : (Math.random() > 0.5 ? 1.00 : 0.00); // Some losses show 1.00 FUN
+
+    return {
+      name: maskedName,
+      betAmount: betAmount,
+      cashOutMultiplier: cashOutMultiplier,
+      winnings: winnings,
+      userId: `fake_${Date.now()}_${Math.random()}`,
+      isFake: true
+    };
+  }, [FAKE_USERNAMES]);  // Now `FAKE_USERNAMES` will not trigger re-creation of `generateFakeUser` callback unnecessarily
 
   // Authentication state
   const [user, setUser] = useState(null);
@@ -92,14 +92,14 @@ const generateFakeUser = useCallback(() => {
   const isRunningRef = useRef(false);
   const [balance, setBalance] = useState(1000.00);
   const [betAmount, setBetAmount] = useState(50.00);
-  const [betAmount2, ] = useState(50.00); // Second betting slot
+  const [betAmount2,] = useState(50.00); // Second betting slot
   const [bets, setBets] = useState(12);
   const [autoMode, setAutoMode] = useState(false);
   const [, setAutoMultiplier] = useState(null);
   const [, setAutoMultiplier2] = useState(null); // Second slot multiplier
   const [, setCountdown] = useState(5);
   const [smoothCountdown, setSmoothCountdown] = useState(5); // For smooth circular animation
-  const [currentGameId, ] = useState(null);
+  const [currentGameId,] = useState(null);
   const currentGameIdRef = useRef(null);
   // const [pendingParticipants, setPendingParticipants] = useState([]); // Unused - removed for build
   const [showCountdown, setShowCountdown] = useState(false);
@@ -371,7 +371,7 @@ const generateFakeUser = useCallback(() => {
       currentMultiplierRef.current = 1.0;
 
       // Generate random crash point between 1.1x and 10.0x
-      crashPointRef.current = parseFloat((1.1 + Math.random() * 8.9).toFixed(2));
+      crashPointRef.current = parseFloat((1.1 + Math.random() * 5.9).toFixed(2));
       console.log(`🎲 New round starting - crash point: ${crashPointRef.current}x`);
 
       // Reset fake members for new round - they'll be added during countdown
@@ -608,31 +608,33 @@ const generateFakeUser = useCallback(() => {
 
       // Function to update rocket position
       // Update the rocket position based on the current multiplier
+      // Function to update rocket position based on the current multiplier
       const updateRocketPosition = (normalizedMultiplier) => {
-        const graphStartX = 40;
-        const graphEndX = 380;
-        const graphStartY = 20;
-        const graphEndY = 280;
+        const graphStartX = 40;  // Starting X position
+        const graphEndX = 380;   // Ending X position
+        const graphStartY = 20;  // Starting Y position (bottom of the graph)
+        const graphEndY = 280;   // Ending Y position (top of the graph)
 
+        // Apply parabolic progress (y = x²) for a smooth curve
         const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
 
-        // X position: rocket moves along a curved path
+        // Calculate the X position: rocket moves from left to right smoothly
         const maxXDistance = graphEndX - graphStartX - 20;
-        const rocketX = graphStartX + (normalizedMultiplier * maxXDistance * 0.9);
+        const rocketX = graphStartX + (normalizedMultiplier * maxXDistance * 0.9); // Move the rocket along X axis
 
-        // Y position: rocket follows a parabolic path (smooth upward curve)
+        // Calculate the Y position: rocket follows a smooth upward curve (parabola)
         const totalHeight = graphEndY - graphStartY;
-        let rocketY = graphEndY - (parabolicProgress * totalHeight);
+        let rocketY = graphEndY - (parabolicProgress * totalHeight);  // Smooth upward curve
 
-        // Ensure the rocket doesn't move beyond the top of the path
+        // Ensure the rocket doesn't move beyond the top or bottom of the path
         rocketY = Math.max(graphStartY + 10, Math.min(graphEndY - 10, rocketY));
 
-        // Update the rocket position
+        // Update the rocket's position using the calculated X and Y
         rocketControls.set({
           translateX: rocketX,
           translateY: rocketY,
           opacity: 1,
-          rotate: 40,
+          rotate: 40,  // Apply a slight rotation for added realism
         });
 
         // Track the rocket's trail (store position for the path)
@@ -651,6 +653,7 @@ const generateFakeUser = useCallback(() => {
           trailUpdateCounterRef.current++;
         }
       };
+
 
 
 
@@ -1206,10 +1209,10 @@ const generateFakeUser = useCallback(() => {
               {/* <div className="volume-icon">🔊</div> */}
             </div>
             <div className="game-title">
-              <span className="logo-space">SPACE</span>
-              <span className="logo-xy-box">
-                <span className="logo-xy">XY</span>
-              </span>
+              <span className="logo-space">Pro</span>
+             
+                <span className="ogo-space">Aviator</span>
+             
             </div>
 
             <div className="header-right">
