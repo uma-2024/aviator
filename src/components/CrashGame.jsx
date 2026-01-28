@@ -11,7 +11,17 @@ import Loader from "./Loader/Loader.jsx";
 
 const CrashGame = ({ onBackToHome }) => {
   // Fake usernames pool for generating realistic fake members
-
+  const [balance, setBalance] = useState(1000.00);  // User balance
+  const [betAmount, setBetAmount] = useState(50.00);  // Current bet amount
+  const [hasPlacedBet, setHasPlacedBet] = useState(false);  // Flag to check if bet is placed
+  const [isRunning, setIsRunning] = useState(false);  // Game state
+  const [multiplier, setMultiplier] = useState(1.0);  // Current multiplier (simulating cashout multiplier)
+  const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);  // Store bet info
+  const [isGameStarted, setIsGameStarted] = useState(false); // Game state: true when game has started
+  const [isCashingOut, setIsCashingOut] = useState(false);   // Track if the user is cashing out
+  const [gameStartTime, setGameStartTime] = useState(null);   // Store the game start time
+  const [cashoutAmount, setCashoutAmount] = useState(0);  // Store the calculated cashout amount
+  
   const FAKE_USERNAMES = useMemo(() => [
     'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
     'Rah', 'Tom', 'Jer', 'Max', 'Leo', 'Zoe', 'Kim', 'Dan', 'Eva', 'Roy',
@@ -73,7 +83,7 @@ const CrashGame = ({ onBackToHome }) => {
   const menuIconRef = useRef(null);
 
   // Game state
-  const [multiplier, setMultiplier] = useState(1.0);
+  // const [multiplier, setMultiplier] = useState(1.0);
   const [displayMultiplier, setDisplayMultiplier] = useState(1.0); // smoothed UI multiplier
   const displayMultiplierRef = useRef(1.0); // Track current displayMultiplier value (not stale)
   const [, setRocketVisualMultiplier] = useState(1.0); // Rocket visual multiplier (faster than actual)
@@ -88,10 +98,10 @@ const CrashGame = ({ onBackToHome }) => {
   const [isCrashed, setIsCrashed] = useState(false);
   const isCrashedRef = useRef(false);
   const [roundOver, setRoundOver] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
+  // const [isRunning, setIsRunning] = useState(false);
   const isRunningRef = useRef(false);
-  const [balance, setBalance] = useState(1000.00);
-  const [betAmount, setBetAmount] = useState(50.00);
+  // const [balance, setBalance] = useState(1000.00);
+  // const [betAmount, setBetAmount] = useState(50.00);
   const [betAmount2,] = useState(50.00); // Second betting slot
   const [bets, setBets] = useState(12);
   const [autoMode, setAutoMode] = useState(false);
@@ -103,9 +113,9 @@ const CrashGame = ({ onBackToHome }) => {
   const currentGameIdRef = useRef(null);
   // const [pendingParticipants, setPendingParticipants] = useState([]); // Unused - removed for build
   const [showCountdown, setShowCountdown] = useState(false);
-  const [hasPlacedBet, setHasPlacedBet] = useState(false);
+  // const [hasPlacedBet, setHasPlacedBet] = useState(false);
   const [, setIsWaitingForGame] = useState(false);
-  const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);
+  // const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);
   const [showStatus] = useState(true); // Used in JSX, but setter not needed
   const [rocketTrail, setRocketTrail] = useState([]);
   const rocketTrailRef = useRef([]); // Store trail in ref to avoid re-renders every frame
@@ -774,91 +784,78 @@ const CrashGame = ({ onBackToHome }) => {
   }, [rocketControls]);
 
   // Frontend-only game logic - generates random multipliers locally
-
   const placeBet = async () => {
-    if (balance >= betAmount && user) {
-      // Use the dedicated bet API
-      if (currentGameId) {
-        try {
-          const result = await placeBetAPI(currentGameId, user._id || user.id, betAmount);
-
-          // Update local balance with server response
-          if (result.success && result.data && result.data.user) {
-            setBalance(result.data.user.balance);
-          } else {
-            setBalance(prev => prev - betAmount);
-          }
-
-          setBets(prev => prev + 1);
-          setHasPlacedBet(true);
-          setUserBetInCurrentGame({ betAmount, gameId: currentGameId });
-          console.log(`User ${user.username || user.email || user.phone} placed bet ${betAmount} in game ${currentGameId}`);
-
-          // Update leaderboard after placing bet
-          setTimeout(() => {
-            updateLeaderboard();
-          }, 500);
-
-        } catch (error) {
-          console.error('Failed to place bet:', error);
-          alert(error.message || 'Failed to place bet');
-          // Don't add to pending, just show error
-        }
-      } else {
-        // No game exists yet, add to pending participants
-        setBalance(prev => prev - betAmount);
-        setBets(prev => prev + 1);
-        setHasPlacedBet(true);
-        setUserBetInCurrentGame({ betAmount, gameId: null });
-        // setPendingParticipants(prev => [...prev, { // Unused - removed for build
-        //   userId: user._id || user.id,
-        //   betAmount: betAmount
-        // }]);
-        console.log(`Added user ${user.username || user.email || user.phone} to pending participants for next game`);
-      }
-    } else if (!user) {
-      alert('Please login to place a bet');
-    } else if (balance < betAmount) {
+    if (balance >= betAmount) {
+      // Proceed with placing the bet if the user has enough balance
+      setBalance(prevBalance => prevBalance - betAmount); // Deduct bet amount from balance
+      setHasPlacedBet(true); // Mark bet as placed
+      setIsGameStarted(true); // Set game started to true
+      setIsCashingOut(false); // Reset cashing out status
+      setGameStartTime(Date.now()); // Set start time for the game
+    } else {
       alert('Insufficient balance');
     }
   };
-
-  const drawRocketTrail = () => {
-    const points = rocketTrail;
-
-    // Ensure there are enough points to draw a path
-    if (points.length < 2) return null; // Need at least 2 points to draw a path
-
-    // Create a path that connects the rocket's positions
-    let pathData = `M ${points[0].x} ${points[0].y}`; // Move to the first point
-
-    for (let i = 1; i < points.length; i++) {
-      const cp1x = points[i - 1].x + (points[i].x - points[i - 1].x) * 0.5; // Control point 1 X
-      const cp1y = points[i - 1].y + (points[i].y - points[i - 1].y) * 0.5; // Control point 1 Y
-      pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`; // Quadratic Bezier curve
+  
+  const handleCashOut = () => {
+    if (!hasPlacedBet || !isGameStarted) {
+      alert('You must place a bet before you can cash out.');
+      return;
     }
-
-    // Ensure pathData is valid
-    if (!pathData || pathData.length === 0) {
-      console.error("Path data is invalid:", pathData);
-      return null;
-    }
-
-    return (
-      <g>
-        {/* Main bright trail path */}
-        <path
-          d={pathData}
-          fill="none"
-          stroke="url(#trailGradient)" // Gradient for the trail (you already have this)
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="1"
-        />
-      </g>
-    );
+  
+    setIsCashingOut(true);  // Trigger cashing out status
+    const winnings = betAmount * displayMultiplier; // Calculate the winnings based on the multiplier
+    setCashoutAmount(winnings);  // Store the cashout amount
+  
+    // Update balance after cashing out
+    setBalance(prevBalance => prevBalance + winnings);
+  
+    // Optional: Trigger some UI feedback on successful cashout
+    alert(`You cashed out ${winnings.toFixed(2)} FUN at a multiplier of ${displayMultiplier.toFixed(2)}x`);
+    
+    setHasPlacedBet(false);  // Reset the bet status after cashout
+    setIsGameStarted(false);  // Reset the game state after cashout
   };
+  
+
+  // Function to draw the rocket trail path using stored positions
+const drawRocketTrail = () => {
+  const points = rocketTrail;
+
+  // Ensure there are enough points to draw a path
+  if (points.length < 2) return null; // Need at least 2 points to draw a path
+
+  // Create a path that connects the rocket's positions
+  let pathData = `M ${points[0].x} ${points[0].y}`; // Move to the first point
+
+  for (let i = 1; i < points.length; i++) {
+    const cp1x = points[i - 1].x + (points[i].x - points[i - 1].x) * 0.5; // Control point 1 X
+    const cp1y = points[i - 1].y + (points[i].y - points[i - 1].y) * 0.5; // Control point 1 Y
+    pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`; // Quadratic Bezier curve
+  }
+
+  // Ensure pathData is valid
+  if (!pathData || pathData.length === 0) {
+    console.error("Path data is invalid:", pathData);
+    return null;
+  }
+
+  return (
+    <g>
+      {/* Main bright trail path */}
+      <path
+        d={pathData}
+        fill="none"
+        stroke="url(#trailGradient)" // Gradient for the trail (you already have this)
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="1"
+      />
+    </g>
+  );
+};
+
 
 
 
@@ -1318,13 +1315,24 @@ const CrashGame = ({ onBackToHome }) => {
                     </pattern>
                     {/* Trail gradient - faint at start, bright yellow-orange at end (near crash point) */}
                     <defs>
-                      <linearGradient id="trailGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#ffaa00" stopOpacity="0.4" />
-                        <stop offset="30%" stopColor="#ff8800" stopOpacity="0.6" />
-                        <stop offset="60%" stopColor="#ff8800" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#ffaa00" stopOpacity="1" />
-                      </linearGradient>
-                    </defs>
+  {/* Glow filter for rocket trail */}
+  <filter id="trailGlow" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+    <feMerge>
+      <feMergeNode in="coloredBlur" />
+      <feMergeNode in="SourceGraphic" />
+    </feMerge>
+  </filter>
+
+  {/* Gradient for the trail (from faint to bright yellow-orange) */}
+  <linearGradient id="trailGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stopColor="#ffaa00" stopOpacity="1" />
+    <stop offset="30%" stopColor="#ff8800" stopOpacity="1" />
+    <stop offset="60%" stopColor="#ff8800" stopOpacity="1" />
+    <stop offset="100%" stopColor="#ffaa00" stopOpacity="1" />
+  </linearGradient>
+</defs>
+
 
                     {/* Glow gradient for trail halo effect */}
                     <linearGradient id="trailGlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -1519,29 +1527,32 @@ const CrashGame = ({ onBackToHome }) => {
                   <text x="200" y="15" className="axis-title" textAnchor="middle">MULTIPLIER</text>
                   <text x="390" y="270" className="axis-title" textAnchor="end">TIME</text>
                   <svg className="graph" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
-                    {/* Existing Graph Components */}
+  {/* Background grid */}
+  <rect width="400" height="300" fill="url(#grid)" />
+  <rect width="400" height="300" fill="url(#majorGrid)" />
 
-                    {/* Rocket Trail */}
-                    <motion.g
-                      initial={{ translateX: 40, translateY: 280, opacity: 1, rotate: 0 }}
-                      animate={rocketControls}
-                      className="rocket-graph"
-                    >
-                      <image
-                        href={rocketImage}
-                        x="-60"
-                        y="-80"
-                        width="120"
-                        height="160"
-                        preserveAspectRatio="xMidYMid meet"
-                        style={{ transformOrigin: 'center center' }}
-                      />
-                    </motion.g>
+  {/* Rocket Path (trail) */}
+  {rocketTrail.length >= 2 && isRunning && drawRocketTrail()}
 
-                    {/* Rocket Trail */}
-                    {rocketTrail.length >= 2 && isRunning && drawRocketTrail()}
+  {/* Other game elements like the rocket */}
+  <motion.g
+    initial={{ translateX: 40, translateY: 280, opacity: 1, rotate: 0 }}
+    animate={rocketControls}
+    className="rocket-graph"
+  >
+    <image
+      href={rocketImage}
+      x="-60"
+      y="-80"
+      width="120"
+      height="160"
+      preserveAspectRatio="xMidYMid meet"
+      style={{ transformOrigin: 'center center' }}
+    />
+  </motion.g>
 
-                  </svg>
+  {/* Other SVG elements */}
+</svg>
 
 
 
@@ -1714,15 +1725,29 @@ const CrashGame = ({ onBackToHome }) => {
                 </div>
 
                 {/* Place Bet Button */}
-                <button
-                  className="place-bet-btn"
-                  onClick={isRunning && hasPlacedBet ? handleClaim : placeBet}
-                  disabled={isRunning && !hasPlacedBet}
-                  title={isRunning && !hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
-                >
-                  <div className="bet-btn-line1">PLACE BET</div>
-                  <div className="bet-btn-line2">(NEXT ROUND)</div>
-                </button>
+                {!isGameStarted && (
+        <button
+          className="place-bet-btn"
+          onClick={placeBet}
+          disabled={isRunning || hasPlacedBet}
+          title={isRunning || hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
+        >
+          <div className="bet-btn-line1">PLACE BET</div>
+          <div className="bet-btn-line2">(NEXT ROUND)</div>
+        </button>
+      )}
+
+      {/* Show Cash Out Button if game is running and bet has been placed */}
+      {isGameStarted && hasPlacedBet && !isCashingOut && (
+        <button
+        className="cash-bet-btn"
+          onClick={handleCashOut}
+          disabled={!isGameStarted || isCashingOut || !hasPlacedBet}
+          title={!isGameStarted || isCashingOut || !hasPlacedBet ? 'You must place a bet and wait for the game to start before cashing out' : ''}
+        >
+          {isCashingOut ? 'Cashing Out...' : 'Cash Out'}
+        </button>
+      )}
               </div>
 
               {/* Second Betting Slot */}
