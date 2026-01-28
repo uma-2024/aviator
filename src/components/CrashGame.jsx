@@ -5,7 +5,7 @@ import { RxSpeakerOff } from "react-icons/rx";
 import rocketImage from "../Assets/rocket1.png";
 import AuthModal from "./AuthModal/AuthModal.jsx";
 import Deposit from "./Deposit/Deposit.jsx";
-import { placeBetAPI, claimWinnings, getCrashHistory, getCurrentUser, getGame } from "../services/api.js";
+import {  getCrashHistory, getCurrentUser } from "../services/api.js";
 import "./CrashGame.css";
 import Loader from "./Loader/Loader.jsx";
 
@@ -16,11 +16,11 @@ const CrashGame = ({ onBackToHome }) => {
   const [hasPlacedBet, setHasPlacedBet] = useState(false);  // Flag to check if bet is placed
   const [isRunning, setIsRunning] = useState(false);  // Game state
   const [multiplier, setMultiplier] = useState(1.0);  // Current multiplier (simulating cashout multiplier)
-  const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);  // Store bet info
+  // const [userBetInCurrentGame, setUserBetInCurrentGame] = useState(null);  // Store bet info
   const [isGameStarted, setIsGameStarted] = useState(false); // Game state: true when game has started
   const [isCashingOut, setIsCashingOut] = useState(false);   // Track if the user is cashing out
-  const [gameStartTime, setGameStartTime] = useState(null);   // Store the game start time
-  const [cashoutAmount, setCashoutAmount] = useState(0);  // Store the calculated cashout amount
+  const [, setGameStartTime] = useState(null);   // Store the game start time
+  const [, setCashoutAmount] = useState(0);  // Store the calculated cashout amount
   
   const FAKE_USERNAMES = useMemo(() => [
     'Moc', 'Ume', 'xEk', 'han', 'fop', 'mav', 'Ali', 'Pra', 'Sam', 'Ank',
@@ -124,8 +124,8 @@ const CrashGame = ({ onBackToHome }) => {
   const [, setCrashPosition] = useState({ x: 0, y: 0 });
   // const [maxMultiplier, setMaxMultiplier] = useState(1.5); // Unused - removed for build
   const [gameHistory, setGameHistory] = useState([1.66, 1.04, 1.24, 7.60, 1.88, 32.21, 3.59, 1.21, 1.86, 3.25].slice(0, 10));
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [claimedUserIds, setClaimedUserIds] = useState(new Set()); // Track recently claimed users
+  const [leaderboard,] = useState([]);
+  const [claimedUserIds, ] = useState(new Set()); // Track recently claimed users
   const [fakeMembers, setFakeMembers] = useState([]); // Fake members for realistic look
   const fakeMembersIntervalRef = useRef(null);
   const fakeMembersAddedRef = useRef(0);
@@ -204,67 +204,67 @@ const CrashGame = ({ onBackToHome }) => {
   }, []);
 
   // Throttled leaderboard updater (max once per 1000ms)
-  const leaderboardInFlightRef = useRef(false);
-  const lastLeaderboardFetchTsRef = useRef(0);
-  const updateLeaderboard = useCallback(async () => {
-    const gameId = currentGameIdRef.current;
-    if (!gameId) {
-      setLeaderboard([]);
-      return;
-    }
+  // const leaderboardInFlightRef = useRef(false);
+  // const lastLeaderboardFetchTsRef = useRef(0);
+  // const updateLeaderboard = useCallback(async () => {
+  //   const gameId = currentGameIdRef.current;
+  //   if (!gameId) {
+  //     setLeaderboard([]);
+  //     return;
+  //   }
 
-    const now = Date.now();
-    if (leaderboardInFlightRef.current || now - lastLeaderboardFetchTsRef.current < 1000) {
-      return;
-    }
-    leaderboardInFlightRef.current = true;
-    lastLeaderboardFetchTsRef.current = now;
+  //   const now = Date.now();
+  //   if (leaderboardInFlightRef.current || now - lastLeaderboardFetchTsRef.current < 1000) {
+  //     return;
+  //   }
+  //   leaderboardInFlightRef.current = true;
+  //   lastLeaderboardFetchTsRef.current = now;
 
-    try {
-      const gameData = await getGame(gameId);
-      if (gameData.success && gameData.data && gameData.data.participants) {
-        // Transform participants to leaderboard format
-        const leaderboardData = gameData.data.participants.map((participant) => {
-          const username = participant.user?.username ||
-            (participant.user?.email ? participant.user.email.split('@')[0] : 'Anonymous');
-          // Mask username
-          const maskedName = username.length > 5
-            ? username.substring(0, 3) + '*'.repeat(username.length - 3)
-            : username.substring(0, 2) + '*'.repeat(username.length - 2);
+  //   try {
+  //     const gameData = await getGame(gameId);
+  //     if (gameData.success && gameData.data && gameData.data.participants) {
+  //       // Transform participants to leaderboard format
+  //       const leaderboardData = gameData.data.participants.map((participant) => {
+  //         const username = participant.user?.username ||
+  //           (participant.user?.email ? participant.user.email.split('@')[0] : 'Anonymous');
+  //         // Mask username
+  //         const maskedName = username.length > 5
+  //           ? username.substring(0, 3) + '*'.repeat(username.length - 3)
+  //           : username.substring(0, 2) + '*'.repeat(username.length - 2);
 
-          return {
-            name: maskedName,
-            amount: participant.betAmount,
-            userId: participant.user?._id || participant.user,
-            betAmount: participant.betAmount,
-            cashOutMultiplier: participant.cashOutMultiplier || null,
-            winnings: participant.winnings || 0,
-            isFake: false // Mark as real user
-          };
-        });
+  //         return {
+  //           name: maskedName,
+  //           amount: participant.betAmount,
+  //           userId: participant.user?._id || participant.user,
+  //           betAmount: participant.betAmount,
+  //           cashOutMultiplier: participant.cashOutMultiplier || null,
+  //           winnings: participant.winnings || 0,
+  //           isFake: false // Mark as real user
+  //         };
+  //       });
 
-        // Sort by bet amount descending
-        leaderboardData.sort((a, b) => b.amount - a.amount);
-        setLeaderboard(leaderboardData);
+  //       // Sort by bet amount descending
+  //       leaderboardData.sort((a, b) => b.amount - a.amount);
+  //       setLeaderboard(leaderboardData);
 
-        // Remove highlights for users whose data has been reloaded (they now have cashOutMultiplier)
-        setClaimedUserIds(prev => {
-          const newSet = new Set(prev);
-          leaderboardData.forEach(player => {
-            // If player has cashOutMultiplier, data has been reloaded, remove highlight
-            if (player.cashOutMultiplier && player.userId) {
-              newSet.delete(player.userId.toString());
-            }
-          });
-          return newSet;
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch leaderboard:', error);
-    } finally {
-      leaderboardInFlightRef.current = false;
-    }
-  }, []);
+  //       // Remove highlights for users whose data has been reloaded (they now have cashOutMultiplier)
+  //       setClaimedUserIds(prev => {
+  //         const newSet = new Set(prev);
+  //         leaderboardData.forEach(player => {
+  //           // If player has cashOutMultiplier, data has been reloaded, remove highlight
+  //           if (player.cashOutMultiplier && player.userId) {
+  //             newSet.delete(player.userId.toString());
+  //           }
+  //         });
+  //         return newSet;
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to fetch leaderboard:', error);
+  //   } finally {
+  //     leaderboardInFlightRef.current = false;
+  //   }
+  // }, []);
 
   // Frontend-only game loop - generates random multipliers locally
   useEffect(() => {
@@ -868,43 +868,43 @@ const drawRocketTrail = () => {
   //   }
   // };
 
-  const handleClaim = async () => {
-    if (!user || !currentGameId || !hasPlacedBet || !userBetInCurrentGame) {
-      return;
-    }
+  // const handleClaim = async () => {
+  //   if (!user || !currentGameId || !hasPlacedBet || !userBetInCurrentGame) {
+  //     return;
+  //   }
 
-    try {
-      const result = await claimWinnings(currentGameId, user._id || user.id, multiplier);
+  //   try {
+  //     const result = await claimWinnings(currentGameId, user._id || user.id, multiplier);
 
-      if (result.success) {
-        // Update balance
-        if (result.data && result.data.user) {
-          setBalance(result.data.user.balance);
-        }
+  //     if (result.success) {
+  //       // Update balance
+  //       if (result.data && result.data.user) {
+  //         setBalance(result.data.user.balance);
+  //       }
 
-        alert(`Claimed ${result.data.bet.winnings.toFixed(2)} INR at ${multiplier.toFixed(2)}x`);
-        setHasPlacedBet(false);
-        setUserBetInCurrentGame(null);
+  //       alert(`Claimed ${result.data.bet.winnings.toFixed(2)} INR at ${multiplier.toFixed(2)}x`);
+  //       setHasPlacedBet(false);
+  //       setUserBetInCurrentGame(null);
 
-        // Highlight this user's row
-        const userId = user._id || user.id;
-        setClaimedUserIds(prev => {
-          const newSet = new Set(prev);
-          newSet.add(userId.toString());
-          return newSet;
-        });
+  //       // Highlight this user's row
+  //       const userId = user._id || user.id;
+  //       setClaimedUserIds(prev => {
+  //         const newSet = new Set(prev);
+  //         newSet.add(userId.toString());
+  //         return newSet;
+  //       });
 
-        // Update leaderboard immediately
-        // Highlight will be removed automatically when data is reloaded in updateLeaderboard
-        setTimeout(() => {
-          updateLeaderboard();
-        }, 300);
-      }
-    } catch (error) {
-      console.error('Failed to claim winnings:', error);
-      alert(error.message || 'Failed to claim winnings');
-    }
-  };
+  //       // Update leaderboard immediately
+  //       // Highlight will be removed automatically when data is reloaded in updateLeaderboard
+  //       setTimeout(() => {
+  //         updateLeaderboard();
+  //       }, 300);
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to claim winnings:', error);
+  //     alert(error.message || 'Failed to claim winnings');
+  //   }
+  // };
 
   // Countdown display - frontend-only, controlled by game loop
   // The countdown is now managed directly by the frontend game loop
