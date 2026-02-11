@@ -184,14 +184,14 @@ justify-content: center;
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .game-details-container {
     padding: 50px 60px;
     gap: 40px;
   }
 
   .game-title {
-    font-size: 52px;
+    font-size: 40px;
   }
 
   .game-stats-panel {

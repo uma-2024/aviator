@@ -12,7 +12,7 @@ import Loader from "./Loader/Loader.jsx";
 const CrashGame = ({ onBackToHome }) => {
   // Fake usernames pool for generating realistic fake members
   const [balance, setBalance] = useState(1000.00);  // User balance
-  const [betAmount, setBetAmount] = useState(50.00);  // Current bet amount
+  const [betAmount] = useState(50.00);  // Current bet amount
   const [hasPlacedBet, setHasPlacedBet] = useState(false);  // Flag to check if bet is placed
   const [isRunning, setIsRunning] = useState(false);  // Game state
   const [multiplier, setMultiplier] = useState(1.0);  // Current multiplier (simulating cashout multiplier)
@@ -102,11 +102,8 @@ const CrashGame = ({ onBackToHome }) => {
   const isRunningRef = useRef(false);
   // const [balance, setBalance] = useState(1000.00);
   // const [betAmount, setBetAmount] = useState(50.00);
-  const [betAmount2,] = useState(50.00); // Second betting slot
   const [bets, setBets] = useState(12);
-  const [autoMode, setAutoMode] = useState(false);
   const [, setAutoMultiplier] = useState(null);
-  const [, setAutoMultiplier2] = useState(null); // Second slot multiplier
   const [, setCountdown] = useState(5);
   const [smoothCountdown, setSmoothCountdown] = useState(5); // For smooth circular animation
   const [currentGameId,] = useState(null);
@@ -432,9 +429,10 @@ const CrashGame = ({ onBackToHome }) => {
             rotate: 0,
             scale: 1
           });
-          // Clear trail before new round
-          rocketTrailRef.current = [];
-          setRocketTrail([]);
+          // Seed trail at launch point so path starts exactly where rocket starts moving.
+          const startTrailPoint = { x: graphStartX, y: graphEndY };
+          rocketTrailRef.current = [startTrailPoint];
+          setRocketTrail([startTrailPoint]);
           trailUpdateCounterRef.current = 0;
 
           // Start game
@@ -545,33 +543,12 @@ const CrashGame = ({ onBackToHome }) => {
         const now = performance.now();
         const deltaTime = now - (lastUpdateTimeRef.current || now);
         lastUpdateTimeRef.current = now;
+        const deltaSeconds = deltaTime / 1000;
+        const MULTIPLIER_GROWTH_PER_SECOND = 1.0;
+        const VISUAL_MAX_MULTIPLIER = 10.0;
 
-        // Start with a medium speed, then progressively slow down as it nears the top (crash point)
-        let rocketSpeedFactor = 0.1;  // Medium starting speed
-        let speedIncreaseFactor = 0.015;  // Rate of acceleration
-        let speedDecreaseFactor = 0.000005; // Rate of deceleration after reaching near the top
-        let maxSpeed = 0.01;  // Maximum speed the rocket can reach
-        let decelerationThreshold = 0.6;  // 60% of the total path - start slowing down
-
-        // Calculate the normalized progress of the rocket (0 to 1, from bottom to top)
-        const normalizedMultiplier = (currentMultiplierRef.current - 1.0) / (crashPointRef.current - 1.0);
-
-        // If rocket is below 60% progress, increase speed normally
-        if (normalizedMultiplier < decelerationThreshold) {
-          rocketSpeedFactor += speedIncreaseFactor;  // Accelerate until 60%
-          rocketSpeedFactor = Math.min(rocketSpeedFactor, maxSpeed);  // Cap the speed
-        } else {
-          // After 60%, start decelerating very slowly
-          rocketSpeedFactor -= speedDecreaseFactor;
-          rocketSpeedFactor = Math.max(rocketSpeedFactor, 0);  // Prevent going negative speed
-        }
-
-        // Update multiplier with the speed factor
-        currentMultiplierRef.current += rocketSpeedFactor * (deltaTime / 16.67); // Normalize to 60fps (16.67ms per frame)
-
-        // Cap the current multiplier to prevent it exceeding the crash point
-        const maxMultiplier = crashPointRef.current || 10.0;
-        currentMultiplierRef.current = Math.min(currentMultiplierRef.current, maxMultiplier);
+        // Keep multiplier growth constant and independent of crash point.
+        currentMultiplierRef.current += MULTIPLIER_GROWTH_PER_SECOND * deltaSeconds;
 
         // Update multiplier display state
         const roundedMultiplier = parseFloat(currentMultiplierRef.current.toFixed(2));
@@ -592,18 +569,28 @@ const CrashGame = ({ onBackToHome }) => {
           setIsCashingOut(false);
           setCashoutAmount(0);
 
-          // Move the rocket out of the graph (fly out)
+          // Fly the rocket away immediately when crash happens.
           rocketControls.start({
-            translateX: 420, // Move beyond the graph on the X-axis
-            translateY: -20, // Move above the graph on the Y-axis
-            opacity: 0, // Make it invisible
-            rotate: 180,  // Rotate to give the illusion that it's flying away
-            scale: 1.5, // Increase the size slightly for the effect
+            translateX: 520,
+            translateY: -160,
+            opacity: 1,
+            scale: 1.4,
             transition: {
-              duration: 1.0, // Duration of the fly away effect
+              duration: 0.9,
               ease: "easeOut",
             },
           });
+
+          // Keep rocket visible while flying away, then hide it after animation completes.
+          setTimeout(() => {
+            rocketControls.set({
+              translateX: 520,
+              translateY: -160,
+              opacity: 0,
+              rotate: 40,
+              scale: 1.4
+            });
+          }, 920);
 
           // Show the gradient and multiplier
           setTimeout(() => {
@@ -613,8 +600,10 @@ const CrashGame = ({ onBackToHome }) => {
         }
 
         else {
-          // Update the rocket position based on the current multiplier
-          updateRocketPosition(normalizedMultiplier);
+          // Rocket path uses a fixed visual scale, so motion speed doesn't reveal crash point.
+          const visualProgress = (currentMultiplierRef.current - 1.0) / (VISUAL_MAX_MULTIPLIER - 1.0);
+          const clampedVisualProgress = Math.max(0, Math.min(1, visualProgress));
+          updateRocketPosition(clampedVisualProgress);
         }
 
         // Continue the game loop using requestAnimationFrame for smooth 60fps
@@ -630,34 +619,38 @@ const CrashGame = ({ onBackToHome }) => {
         const graphStartY = 20;  // Starting Y position (bottom of the graph)
         const graphEndY = 280;   // Ending Y position (top of the graph)
 
-        // Apply parabolic progress (y = x²) for a smooth curve
-        const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
-
         // Calculate the X position: rocket moves from left to right smoothly
         const maxXDistance = graphEndX - graphStartX - 20;
         const rocketX = graphStartX + (normalizedMultiplier * maxXDistance * 0.9); // Move the rocket along X axis
 
-        // Calculate the Y position: rocket follows a smooth upward curve (parabola)
+        // Calculate Y with linear scale so rocket matches Y-axis multiplier marks.
         const totalHeight = graphEndY - graphStartY;
-        let rocketY = graphEndY - (parabolicProgress * totalHeight);  // Smooth upward curve
+        let rocketY = graphEndY - (normalizedMultiplier * totalHeight);
 
         // Ensure the rocket doesn't move beyond the top or bottom of the path
         rocketY = Math.max(graphStartY + 10, Math.min(graphEndY - 10, rocketY));
 
         // Update the rocket's position using the calculated X and Y
+        const reachedTop = normalizedMultiplier >= 1;
         rocketControls.set({
           translateX: rocketX,
           translateY: rocketY,
-          opacity: 1,
+          opacity: reachedTop ? 0 : 1,
           rotate: 40,  // Apply a slight rotation for added realism
         });
+
+        // Ensure first segment starts from the actual launch point.
+        if (rocketTrailRef.current.length === 0) {
+          rocketTrailRef.current.push({ x: graphStartX, y: graphEndY });
+        }
 
         // Track the rocket's trail (store position for the path)
         rocketTrailRef.current.push({ x: rocketX, y: rocketY });
 
-        // If the trail exceeds a certain length, trim it to keep performance in check
-        if (rocketTrailRef.current.length > 50) {
-          rocketTrailRef.current.shift(); // Remove the first element
+        // Keep full round path visible from start to current position.
+        // Use a high safety cap to avoid unbounded growth in long sessions.
+        if (rocketTrailRef.current.length > 1500) {
+          rocketTrailRef.current = rocketTrailRef.current.slice(-1500);
         }
 
         // Update the trail display every few frames (every 3 frames)
@@ -830,13 +823,18 @@ const drawRocketTrail = () => {
   // Ensure there are enough points to draw a path
   if (points.length < 2) return null; // Need at least 2 points to draw a path
 
-  // Create a path that connects the rocket's positions
-  let pathData = `M ${points[0].x} ${points[0].y}`; // Move to the first point
+  // Start visible trail from 5% of the collected path.
+  const startIndex = Math.floor(points.length * 0.05);
+  const visiblePoints = points.slice(startIndex);
+  if (visiblePoints.length < 2) return null;
 
-  for (let i = 1; i < points.length; i++) {
-    const cp1x = points[i - 1].x + (points[i].x - points[i - 1].x) * 0.5; // Control point 1 X
-    const cp1y = points[i - 1].y + (points[i].y - points[i - 1].y) * 0.5; // Control point 1 Y
-    pathData += ` Q ${cp1x} ${cp1y}, ${points[i].x} ${points[i].y}`; // Quadratic Bezier curve
+  // Create a path that connects the rocket's positions
+  let pathData = `M ${visiblePoints[0].x} ${visiblePoints[0].y}`; // Move to the first point
+
+  for (let i = 1; i < visiblePoints.length; i++) {
+    const cp1x = visiblePoints[i - 1].x + (visiblePoints[i].x - visiblePoints[i - 1].x) * 0.5; // Control point 1 X
+    const cp1y = visiblePoints[i - 1].y + (visiblePoints[i].y - visiblePoints[i - 1].y) * 0.5; // Control point 1 Y
+    pathData += ` Q ${cp1x} ${cp1y}, ${visiblePoints[i].x} ${visiblePoints[i].y}`; // Quadratic Bezier curve
   }
 
   // Ensure pathData is valid
@@ -851,8 +849,8 @@ const drawRocketTrail = () => {
       <path
         d={pathData}
         fill="none"
-        stroke="url(#trailGradient)" // Gradient for the trail (you already have this)
-        strokeWidth="5"
+        stroke="#ffe600"
+        strokeWidth="6"
         strokeLinecap="round"
         strokeLinejoin="round"
         opacity="1"
@@ -927,15 +925,15 @@ const drawRocketTrail = () => {
     const axisY = graphEndY;
     // const graphHeight = graphEndY - graphStartY; // Unused - removed for build
 
-    // If not running (cooldown period) or crashed, show rocket at starting position (bottom)
-    // All browsers will show the same starting position
-    if (!isRunning || isCrashed) {
+    // If not running (cooldown period), show rocket at starting position (bottom).
+    // Do not reset while `isCrashed` is true, otherwise crash fly-away gets interrupted.
+    if (!isRunning && !isCrashed) {
       // Always reset to bottom position when game is not running
       // Use set() to instantly position without animation to prevent "coming from behind" effect
       rocketControls.set({
         translateX: axisX,
         translateY: axisY,
-        opacity: isCrashed ? 0 : 1, // Hide if crashed, show if just waiting
+        opacity: 1,
         rotate: 0,
         scale: 1
       });
@@ -1087,7 +1085,7 @@ const drawRocketTrail = () => {
       const fixedMax = 10; // Fixed scale: 1.0 to 10
       const finalMultiplier = multiplier;
 
-      // Calculate crash Y position using same parabolic path as rocket
+      // Calculate crash Y position using linear mapping to match Y-axis labels.
       const getCrashYPosition = (multiplier) => {
         if (multiplier <= 1.0) return axisY;
 
@@ -1098,20 +1096,16 @@ const drawRocketTrail = () => {
         // Normalize multiplier (0 to 1)
         const normalizedMultiplier = (multiplier - 1.0) / (maxMultiplier - 1.0);
 
-        // Positive upward parabola: y = x²
-        const parabolicProgress = normalizedMultiplier * normalizedMultiplier;
-
-        // Calculate Y position using parabolic curve
-        const yPosition = axisY - (parabolicProgress * totalHeight);
+        const yPosition = axisY - (normalizedMultiplier * totalHeight);
 
         return Math.max(graphStartY + 10, Math.min(axisY - 10, yPosition));
       };
 
-      // Calculate crash position - positive upward parabola (same as rocket)
+      // Calculate crash position using same scale as rocket.
       const maxXDistance = graphEndX - graphStartX - 20;
       const xProgress = Math.min((finalMultiplier - 1.0) / (fixedMax - 1.0), 1.0);
 
-      // Positive upward parabola
+      // Keep slight style curve on X only.
       const baseX = axisX + (xProgress * maxXDistance * 0.85);
       const parabolicCurve = xProgress * xProgress * 25; // Parabolic curve (x²) outward
       const crashX = baseX + parabolicCurve;
@@ -1129,42 +1123,11 @@ const drawRocketTrail = () => {
 
       setCrashPosition({ x: crashX, y: crashY });
 
-      // Move rocket to crash position and hide it
-      rocketControls.start({
-        translateX: crashX,
-        translateY: crashY,
-        opacity: 0,
-        rotate: 30,
-        scale: 0.5,
-        transition: {
-          duration: 0.3,
-          ease: "easeOut"
-        }
-      });
-
-      // Show crash effect for 3 seconds
+      // Show crash effect briefly while rocket flies away.
       setShowCrashEffect(true);
       setTimeout(() => {
         setShowCrashEffect(false);
-        // Reset rocket to starting position instantly (no animation) after crash animation
-        // This prevents the "coming from behind" effect
-        const graphStartX = 40;
-        const graphEndY = 280;
-        // Use set() to instantly reset without any animation
-        rocketControls.set({
-          translateX: graphStartX,
-          translateY: graphEndY,
-          opacity: 0, // Keep hidden until new round starts
-          rotate: 0,
-          scale: 1
-        });
-        // Clear trail immediately
-        rocketTrailRef.current = [];
-        setRocketTrail([]);
-        trailUpdateCounterRef.current = 0;
-        // Stop any ongoing animations
-        rocketControls.stop();
-      }, 3000);
+      }, 1000);
     }
   }, [isCrashed, multiplier, rocketControls]);
 
@@ -1331,10 +1294,10 @@ const drawRocketTrail = () => {
 
   {/* Gradient for the trail (from faint to bright yellow-orange) */}
   <linearGradient id="trailGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-    <stop offset="0%" stopColor="#ffaa00" stopOpacity="1" />
-    <stop offset="30%" stopColor="#ff8800" stopOpacity="1" />
-    <stop offset="60%" stopColor="#ff8800" stopOpacity="1" />
-    <stop offset="100%" stopColor="#ffaa00" stopOpacity="1" />
+    <stop offset="0%" stopColor="#fff799" stopOpacity="1" />
+    <stop offset="30%" stopColor="#ffef3a" stopOpacity="1" />
+    <stop offset="60%" stopColor="#ffe600" stopOpacity="1" />
+    <stop offset="100%" stopColor="#ffd400" stopOpacity="1" />
   </linearGradient>
 </defs>
 
@@ -1383,57 +1346,21 @@ const drawRocketTrail = () => {
                   <line x1="40" y1="280" x2="380" y2="280" stroke="#666" strokeWidth="2" className="main-axis" />
 
 
-                  {/* Y-axis grid lines - 1.0x always fixed at bottom, then dynamic scrolling */}
+                  {/* Y-axis grid lines (fixed 1.0x to 10.0x to match rocket scale) */}
                   {(() => {
                     const graphStartY = 20;
                     const graphEndY = 280;
-                    const tickStep = 0.1;
-                    const totalTicks = 6;
+                    const minMultiplier = 1.0;
+                    const maxMultiplier = 10.0;
+                    const totalTicks = 10;
                     const tickGapPx = (graphEndY - graphStartY) / (totalTicks - 1);
-                    const lineMaxValues = [2.0, 4.0, 6.0, 8.0, 10.0]; // Max values: Line 1=2.0x, Line 2=4.0x, Line 3=6.0x, Line 4=8.0x, Line 5=10.0x
-                    const needsScrolling = displayMultiplier > 2.0;
 
-                    // Calculate ticks based on multiplier (use displayMultiplier for fast scrolling)
-                    let ticks = [];
-                    if (!needsScrolling) {
-                      // Fixed mode: always show 1.0x to 1.5x when multiplier <= 2.0x
-                      for (let i = 0; i < totalTicks; i++) {
-                        ticks.push(1.0 + (i * tickStep));
-                      }
-                    } else {
-                      // Dynamic scrolling mode: 1.0x always fixed at bottom
-                      // Use displayMultiplier for fast Y-axis scrolling
-                      const baseTick = Math.floor(displayMultiplier / tickStep) * tickStep;
-                      const adjustedBaseTick = Math.max(1.0, baseTick - tickStep);
-
-                      // First tick is ALWAYS 1.0x (fixed at bottom, never goes above 2.0x)
-                      ticks.push(1.0);
-
-                      // Generate remaining ticks dynamically (5 ticks above 1.0x)
-                      // Each line is limited to its specific maximum value
-                      const dynamicTicks = totalTicks - 1;
-                      const startTick = Math.max(1.1, adjustedBaseTick + tickStep);
-                      for (let i = 0; i < dynamicTicks; i++) {
-                        const tickValue = startTick + (i * tickStep);
-                        // Limit each line to its specific maximum value
-                        const maxValue = lineMaxValues[i] || 10.0; // Line index 0 = second line (max 2.0), index 1 = third line (max 4.0), etc.
-                        ticks.push(parseFloat(Math.min(tickValue, maxValue).toFixed(1)));
-                      }
-                    }
-
-                    // Calculate Y position for each tick
-                    // Bottom (graphEndY) = lowest value, Top (graphStartY) = highest value
-                    const getYPosition = (index) => {
-                      // index 0 (lowest value, always 1.0x) goes to bottom (graphEndY)
-                      // index totalTicks-1 (highest value) goes to top (graphStartY)
-                      return graphEndY - (tickGapPx * index);
-                    };
-
-                    return ticks.map((tick, index) => {
-                      const yPosition = getYPosition(index);
+                    return Array.from({ length: totalTicks }, (_, index) => {
+                      const yPosition = graphEndY - (tickGapPx * index);
+                      const tickValue = minMultiplier + index * ((maxMultiplier - minMultiplier) / (totalTicks - 1));
                       return (
                         <line
-                          key={`y-grid-${tick.toFixed(1)}`}
+                          key={`y-grid-${tickValue.toFixed(1)}`}
                           x1="40"
                           y1={yPosition}
                           x2="380"
@@ -1453,58 +1380,21 @@ const drawRocketTrail = () => {
                   <line x1="280" y1="20" x2="280" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
                   <line x1="340" y1="20" x2="340" y2="280" stroke="#555" strokeWidth="1" opacity="0.6" />
 
-                  {/* Y-axis labels (Multiplier) - 1.0x always fixed at bottom, then dynamic scrolling */}
+                  {/* Y-axis labels (fixed 1.0x to 10.0x to match rocket scale) */}
                   {(() => {
                     const graphStartY = 20;
                     const graphEndY = 280;
-                    const tickStep = 0.1;
-                    const totalTicks = 6;
+                    const minMultiplier = 1.0;
+                    const maxMultiplier = 10.0;
+                    const totalTicks = 10;
                     const tickGapPx = (graphEndY - graphStartY) / (totalTicks - 1);
-                    const lineMaxValues = [2.0, 4.0, 6.0, 8.0, 10.0]; // Max values: Line 1=2.0x, Line 2=4.0x, Line 3=6.0x, Line 4=8.0x, Line 5=10.0x
-                    const needsScrolling = displayMultiplier > 2.0;
 
-                    // Calculate ticks based on multiplier (use displayMultiplier for fast scrolling)
-                    let ticks = [];
-                    if (!needsScrolling) {
-                      // Fixed mode: always show 1.0x to 1.5x (1.0x always at bottom) when multiplier <= 2.0x
-                      for (let i = 0; i < totalTicks; i++) {
-                        ticks.push(1.0 + (i * tickStep));
-                      }
-                    } else {
-                      // Dynamic scrolling mode: 1.0x ALWAYS fixed at bottom
-                      // Use displayMultiplier for fast Y-axis scrolling
-                      const baseTick = Math.floor(displayMultiplier / tickStep) * tickStep;
-                      const adjustedBaseTick = Math.max(1.0, baseTick - tickStep);
-
-                      // First tick is ALWAYS 1.0x (fixed at bottom, never goes above 2.0x)
-                      ticks.push(1.0);
-
-                      // Generate remaining ticks dynamically (5 ticks above 1.0x)
-                      // Each line is limited to its specific maximum value
-                      const dynamicTicks = totalTicks - 1;
-                      const startTick = Math.max(1.1, adjustedBaseTick + tickStep);
-                      for (let i = 0; i < dynamicTicks; i++) {
-                        const tickValue = startTick + (i * tickStep);
-                        // Limit each line to its specific maximum value
-                        const maxValue = lineMaxValues[i] || 10.0; // Line index 0 = second line (max 2.0), index 1 = third line (max 4.0), etc.
-                        ticks.push(parseFloat(Math.min(tickValue, maxValue).toFixed(1)));
-                      }
-                    }
-
-                    // Calculate Y position for each tick
-                    // Bottom (graphEndY) = lowest value, Top (graphStartY) = highest value
-                    const getYPosition = (index) => {
-                      // index 0 (lowest value, always 1.0x) goes to bottom (graphEndY)
-                      // index totalTicks-1 (highest value) goes to top (graphStartY)
-                      return graphEndY - (tickGapPx * index);
-                    };
-
-                    return ticks.map((tick, index) => {
-                      const yPosition = getYPosition(index);
-                      const tickValue = parseFloat(tick.toFixed(1));
+                    return Array.from({ length: totalTicks }, (_, index) => {
+                      const yPosition = graphEndY - (tickGapPx * index);
+                      const tickValue = minMultiplier + index * ((maxMultiplier - minMultiplier) / (totalTicks - 1));
                       return (
                         <text
-                          key={`y-label-${tickValue}`}
+                          key={`y-label-${tickValue.toFixed(1)}`}
                           x="5"
                           y={yPosition + 4}
                           className="axis-label"
@@ -1531,35 +1421,8 @@ const drawRocketTrail = () => {
                   {/* Axis titles */}
                   <text x="200" y="15" className="axis-title" textAnchor="middle">MULTIPLIER</text>
                   <text x="390" y="270" className="axis-title" textAnchor="end">TIME</text>
-                  <svg className="graph" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
-  {/* Background grid */}
-  <rect width="400" height="300" fill="url(#grid)" />
-  <rect width="400" height="300" fill="url(#majorGrid)" />
-
-  {/* Rocket Path (trail) */}
-  {rocketTrail.length >= 2 && isRunning && drawRocketTrail()}
-
-  {/* Other game elements like the rocket */}
-  <motion.g
-    initial={{ translateX: 40, translateY: 280, opacity: 1, rotate: 0 }}
-    animate={rocketControls}
-    className="rocket-graph"
-  >
-    <image
-      href={rocketImage}
-      x="-60"
-      y="-80"
-      width="120"
-      height="160"
-      preserveAspectRatio="xMidYMid meet"
-      style={{ transformOrigin: 'center center' }}
-    />
-  </motion.g>
-
-  {/* Other SVG elements */}
-</svg>
-
-
+                  {/* Rocket Path (trail) */}
+                  {rocketTrail.length >= 2 && isRunning && drawRocketTrail()}
 
                   {/* Crash Effect - Single Radial Gradient Orb */}
                   {showCrashEffect && (
@@ -1581,10 +1444,10 @@ const drawRocketTrail = () => {
                   >
                     <image
                       href={rocketImage}
-                      x="-60"
-                      y="-80"
-                      width="120"
-                      height="160"
+                      x="-75"
+                      y="-100"
+                      width="150"
+                      height="200"
                       preserveAspectRatio="xMidYMid meet"
                       style={{ transformOrigin: 'center center' }}
                     />
@@ -1695,13 +1558,7 @@ const drawRocketTrail = () => {
                 Balance {balance.toFixed(2)} {viewInFun ? 'FUN' : 'INR'}
               </div>
 
-              {/* AUTO Button */}
-              <button
-                className={`auto-btn ${autoMode ? 'active' : ''}`}
-                onClick={() => setAutoMode(!autoMode)}
-              >
-                AUTO
-              </button>
+              {/* AUTO Button (temporarily hidden) */}
 
               {/* First Betting Slot */}
               <div className="betting-slot">
