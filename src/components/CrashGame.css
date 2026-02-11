@@ -918,7 +918,7 @@ body {
   gap: 10px;
   width: 100%;
   max-width: 1400px;
-  justify-content: flex-start;
+  justify-content: center;
   flex-wrap: nowrap;
 }
 

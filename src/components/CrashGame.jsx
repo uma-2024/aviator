@@ -586,6 +586,11 @@ const CrashGame = ({ onBackToHome }) => {
           setIsCrashed(true);
           setRoundOver(true);
           setIsRunning(false); // Stop the game loop
+          // If user didn't cash out before crash, clear bet state for next round
+          setHasPlacedBet(false);
+          setIsGameStarted(false);
+          setIsCashingOut(false);
+          setCashoutAmount(0);
 
           // Move the rocket out of the graph (fly out)
           rocketControls.start({
@@ -798,8 +803,8 @@ const CrashGame = ({ onBackToHome }) => {
   };
   
   const handleCashOut = () => {
-    if (!hasPlacedBet || !isGameStarted) {
-      alert('You must place a bet before you can cash out.');
+    if (!hasPlacedBet || !isGameStarted || !isRunning) {
+      alert('You can cash out only after the round starts.');
       return;
     }
   
@@ -1742,59 +1747,15 @@ const drawRocketTrail = () => {
         <button
         className="cash-bet-btn"
           onClick={handleCashOut}
-          disabled={!isGameStarted || isCashingOut || !hasPlacedBet}
-          title={!isGameStarted || isCashingOut || !hasPlacedBet ? 'You must place a bet and wait for the game to start before cashing out' : ''}
+          disabled={!isRunning || !isGameStarted || isCashingOut || !hasPlacedBet}
+          title={!isRunning || !isGameStarted || isCashingOut || !hasPlacedBet ? 'You must place a bet and wait for the game to start before cashing out' : ''}
         >
           {isCashingOut ? 'Cashing Out...' : 'Cash Out'}
         </button>
       )}
               </div>
 
-              {/* Second Betting Slot */}
-              <div className="betting-slot">
-                {/* Bet Amount Display */}
-                <div className="bet-amount-display">
-                  {betAmount2.toFixed(2)} {viewInFun ? 'FUN' : 'INR'}
-                </div>
-
-                {/* Vertical Separator */}
-                <div className="bet-separator"></div>
-
-                {/* Multiplier Input */}
-                <div className="multiplier-input-container">
-
-                  <div className="multiplier-input">
-                    <span className="multiplier-line">|</span>
-                    <span className="multiplier-dash">---</span>
-                    <span className="multiplier-line">|</span>
-
-                  </div>
-                  <button
-                    className="multiplier-cancel-btn"
-                    onClick={() => setAutoMultiplier2(null)}
-                    title="Clear multiplier"
-                  >
-                    <span className="close-x-icon"></span>
-                  </button>
-                </div>
-
-                {/* Place Bet Button */}
-                <button
-                  className="place-bet-btn"
-                  onClick={() => {
-                    // Place bet with second slot amount
-                    const originalBet = betAmount;
-                    setBetAmount(betAmount2);
-                    placeBet();
-                    setBetAmount(originalBet);
-                  }}
-                  disabled={isRunning && !hasPlacedBet}
-                  title={isRunning && !hasPlacedBet ? 'Betting disabled during game if no bet placed' : ''}
-                >
-                  <div className="bet-btn-line1">PLACE BET</div>
-                  <div className="bet-btn-line2">(NEXT ROUND)</div>
-                </button>
-              </div>
+            
             </div>
           </div>
 
